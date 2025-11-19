@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swing App</title>
+<style>
+*{box-sizing:border-box;}
+body,html{margin:0;padding:0;height:100%;font-family:sans-serif;background:#000;color:#fff;overflow:hidden;}
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;}
+.navbar{height:60px;width:100%;display:flex;justify-content:space-between;align-items:center;padding:0 15px;position:fixed;top:0;z-index:100;background:rgba(0,0,0,0.6);backdrop-filter:blur(15px);}
+.navbar h1{font-size:26px;margin:0;color:#ff2d55;text-shadow:0 0 15px rgba(255,45,85,0.7);}
+.navbar .icons{display:flex;gap:15px;font-size:22px;cursor:pointer;transition:0.3s;}
+.navbar .icons:hover{transform:scale(1.1);}
+.feed{flex:1;margin-top:60px;overflow-y:scroll;scroll-snap-type:y mandatory;scroll-behavior:smooth;}
+.video-item{height:100vh;scroll-snap-align:start;position:relative;display:flex;justify-content:flex-end;align-items:flex-end;transition:all 0.3s;}
+video{width:100%;height:100%;object-fit:cover;background:#000;}
+.overlay{position:absolute;bottom:140px;left:15px;max-width:70%;}
+.overlay .user{font-weight:bold;margin-bottom:5px;font-size:18px;text-shadow:0 0 5px #000;}
+.overlay .desc{font-size:14px;line-height:1.2;text-shadow:0 0 5px #000;}
+.controls{position:absolute;right:15px;bottom:90px;display:flex;flex-direction:column;align-items:center;gap:20px;}
+.controls .like,.controls .comment{font-size:35px;cursor:pointer;transition: transform 0.2s;}
+.controls .like.liked{color:#ff2d55;transform:scale(1.6);animation:pop 0.3s;}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.6)}100%{transform:scale(1.2)}}
+.comment-box{position:absolute;left:0;bottom:0;width:100%;background:rgba(0,0,0,0.85);display:none;flex-direction:column;padding:10px;gap:5px;}
+.comment-box input{width:100%;padding:10px;border:none;border-radius:5px;}
+.comment-box .list{max-height:150px;overflow-y:auto;}
+.comment-box .list div{padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.2);font-size:14px;}
+.bottom-nav{height:60px;width:100%;display:flex;justify-content:space-around;align-items:center;position:fixed;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(15px);z-index:100;}
+.bottom-nav div{font-size:28px;cursor:pointer;transition:0.3s;}
+.bottom-nav div:hover{transform:scale(1.3);color:#ff2d55;}
+#settingsModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;z-index:200;}
+#settingsModal input{padding:10px;width:250px;margin:10px 0;border-radius:5px;border:none;}
+#settingsModal button{padding:10px 20px;margin-top:10px;border:none;border-radius:5px;background:#ff2d55;color:#fff;cursor:pointer;}
+#settingsModal button:hover{transform:scale(1.05);transition:0.3s;}
+</style>
+</head>
+<body>
+
+<!-- MAIN APP -->
+<div id="app">
+<div class="navbar">
+<h1>Swing</h1>
+<div class="icons" id="settingsBtn">⚙️</div>
+</div>
+<div class="feed" id="feed"></div>
+<div class="bottom-nav">
+<div>🏠</div>
+<div>🔍</div>
+<div>➕</div>
+<div id="logoutBtn">👤</div>
+</div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsModal">
+<h2>Settings</h2>
+<input type="text" id="changeName" placeholder="Change display name">
+<button id="saveSettings">Save</button>
+<button id="closeSettings">Close</button>
+<button id="logoutSettings">Logout</button>
+</div>
+
+<script>
+const feedDiv=document.getElementById("feed");
+const settingsModal=document.getElementById("settingsModal");
+const settingsBtn=document.getElementById("settingsBtn");
+const closeSettings=document.getElementById("closeSettings");
+const saveSettings=document.getElementById("saveSettings");
+const logoutSettings=document.getElementById("logoutSettings");
+
+// Default display name
+let displayName = "User";
+
+// Load videos
+function loadVideos(){
+  feedDiv.innerHTML="";
+  const videoData=[
+    {src:"https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",user:"@naturelover",desc:"Beautiful flowers bloom 🌸"},
+    {src:"https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",user:"@cityvibes",desc:"City lights at night 🌃"}
+  ];
+  videoData.forEach(v=>{
+    const div=document.createElement("div"); div.className="video-item";
+    div.innerHTML=`<video src="${v.src}" muted playsinline loop></video>
+    <div class="overlay"><div class="user">${v.user}</div><div class="desc">${v.desc}</div></div>
+    <div class="controls"><div class="like">❤️ <span class="count">0</span></div><div class="comment">💬</div></div>
+    <div class="comment-box"><div class="list"></div><input type="text" placeholder="Write comment and press Enter"></div>`;
+    feedDiv.appendChild(div);
+
+    const video=div.querySelector("video");
+    const likeBtn=div.querySelector(".like");
+    const commentBtn=div.querySelector(".comment");
+    const commentBox=div.querySelector(".comment-box");
+    const list=commentBox.querySelector(".list");
+    const input=commentBox.querySelector("input");
+    let liked=false;
+
+    likeBtn.addEventListener("click",()=>{
+      let count=parseInt(likeBtn.querySelector(".count").textContent);
+      count = liked ? count-1 : count+1;
+      likeBtn.querySelector(".count").textContent=count;
+      liked=!liked;
+      likeBtn.classList.add("liked"); setTimeout(()=>likeBtn.classList.remove("liked"),300);
+    });
+
+    commentBtn.addEventListener("click",()=>{commentBox.style.display=commentBox.style.display==="flex"?"none":"flex";});
+    input.addEventListener("keydown",e=>{
+      if(e.key==="Enter" && input.value.trim()!==""){
+        const div=document.createElement("div"); div.textContent=displayName+": "+input.value.trim();
+        list.appendChild(div); input.value=""; list.scrollTop=list.scrollHeight;
+      }
+    });
+  });
+
+  // Auto play videos
+  document.querySelectorAll("video").forEach(v=>{
+    const r=v.getBoundingClientRect();
+    if(r.top>=0 && r.bottom<=window.innerHeight) v.play();
+    else v.pause();
+  });
+
+  document.querySelector(".feed").addEventListener("scroll",()=>{
+    document.querySelectorAll("video").forEach(v=>{
+      const r=v.getBoundingClientRect();
+      if(r.top>=0 && r.bottom<=window.innerHeight) v.play(); else v.pause();
+    });
+  });
+}
+
+// Settings
+settingsBtn.onclick = ()=>settingsModal.style.display="flex";
+closeSettings.onclick = ()=>settingsModal.style.display="none";
+saveSettings.onclick = ()=>{
+  const newName=document.getElementById("changeName").value.trim();
+  if(newName!=="") displayName=newName;
+  alert("Display name changed!");
+};
+logoutSettings.onclick = ()=>{alert("Logged out");};
+
+// Init
+loadVideos();
+</script>
+</body>
+</html>
