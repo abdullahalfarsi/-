@@ -1,144 +1,606 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Swing App</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Swing — IG-like Single File App (with Auth)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;}
-body,html{margin:0;padding:0;height:100%;font-family:sans-serif;background:#000;color:#fff;overflow:hidden;}
-#app{display:flex;flex-direction:column;height:100vh;width:100vw;}
-.navbar{height:60px;width:100%;display:flex;justify-content:space-between;align-items:center;padding:0 15px;position:fixed;top:0;z-index:100;background:rgba(0,0,0,0.6);backdrop-filter:blur(15px);}
-.navbar h1{font-size:26px;margin:0;color:#ff2d55;text-shadow:0 0 15px rgba(255,45,85,0.7);}
-.navbar .icons{display:flex;gap:15px;font-size:22px;cursor:pointer;transition:0.3s;}
-.navbar .icons:hover{transform:scale(1.1);}
-.feed{flex:1;margin-top:60px;overflow-y:scroll;scroll-snap-type:y mandatory;scroll-behavior:smooth;}
-.video-item{height:100vh;scroll-snap-align:start;position:relative;display:flex;justify-content:flex-end;align-items:flex-end;transition:all 0.3s;}
-video{width:100%;height:100%;object-fit:cover;background:#000;}
-.overlay{position:absolute;bottom:140px;left:15px;max-width:70%;}
-.overlay .user{font-weight:bold;margin-bottom:5px;font-size:18px;text-shadow:0 0 5px #000;}
-.overlay .desc{font-size:14px;line-height:1.2;text-shadow:0 0 5px #000;}
-.controls{position:absolute;right:15px;bottom:90px;display:flex;flex-direction:column;align-items:center;gap:20px;}
-.controls .like,.controls .comment{font-size:35px;cursor:pointer;transition: transform 0.2s;}
-.controls .like.liked{color:#ff2d55;transform:scale(1.6);animation:pop 0.3s;}
-@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.6)}100%{transform:scale(1.2)}}
-.comment-box{position:absolute;left:0;bottom:0;width:100%;background:rgba(0,0,0,0.85);display:none;flex-direction:column;padding:10px;gap:5px;}
-.comment-box input{width:100%;padding:10px;border:none;border-radius:5px;}
-.comment-box .list{max-height:150px;overflow-y:auto;}
-.comment-box .list div{padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.2);font-size:14px;}
-.bottom-nav{height:60px;width:100%;display:flex;justify-content:space-around;align-items:center;position:fixed;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(15px);z-index:100;}
-.bottom-nav div{font-size:28px;cursor:pointer;transition:0.3s;}
-.bottom-nav div:hover{transform:scale(1.3);color:#ff2d55;}
-#settingsModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;z-index:200;}
-#settingsModal input{padding:10px;width:250px;margin:10px 0;border-radius:5px;border:none;}
-#settingsModal button{padding:10px 20px;margin-top:10px;border:none;border-radius:5px;background:#ff2d55;color:#fff;cursor:pointer;}
-#settingsModal button:hover{transform:scale(1.05);transition:0.3s;}
+  :root{
+    --bg-dark:#0b0b0c; --panel:#0f1720; --accent:#ff2d55; --muted:rgba(255,255,255,0.65);
+    --glass: rgba(255,255,255,0.06);
+    --light-bg:#f5f6f8; --light-panel:#ffffff; --light-text:#111;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg-dark);color:#fff;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;-webkit-font-smoothing:antialiased}
+
+  /* NAVBAR */
+  .navbar{
+    height:64px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;
+    position:fixed;top:0;left:0;right:0;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    border-bottom:1px solid rgba(255,255,255,0.03);backdrop-filter:blur(6px);z-index:160
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#ff6b7a,#ff2d55);display:flex;align-items:center;justify-content:center;font-weight:700}
+  .brand h1{font-size:18px;margin:0}
+  .nav-actions{display:flex;gap:12px;align-items:center}
+  .icon-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:8px;border-radius:8px}
+  .icon-btn:hover{transform:translateY(-2px);transition:0.15s}
+
+  /* AUTH overlay (Instagram-like) */
+  .auth-overlay{position:fixed;inset:0;background:linear-gradient(180deg,#fff,#f3f3f4);display:flex;align-items:center;justify-content:center;z-index:200}
+  .auth-card{width:360px;background:#fff;color:#111;border-radius:12px;padding:22px;box-shadow:0 20px 60px rgba(2,6,23,0.4);text-align:center}
+  .auth-card h2{margin:0 0 10px;font-size:24px}
+  .auth-card p{margin:0 0 18px;color:#666}
+  .auth-input{width:100%;padding:12px;border-radius:10px;border:1px solid #e6e6e6;margin-bottom:10px;outline:none}
+  .auth-btn{width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+  .auth-switch{margin-top:12px;color:#666;font-size:14px}
+  .auth-switch span{color:var(--accent);cursor:pointer}
+
+  /* LAYOUT */
+  .app{max-width:1100px;margin:0 auto;padding-top:80px;padding-bottom:100px}
+  .top-row{display:flex;gap:20px;padding:8px 12px;align-items:flex-start}
+  .left-col{flex:1;min-width:300px}
+  .right-col{width:340px}
+  /* STORIES */
+  .stories{display:flex;gap:12px;padding:8px 6px;overflow:auto;margin-bottom:12px}
+  .story{min-width:74px;height:96px;border-radius:12px;background:linear-gradient(180deg,#222,#111);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;color:#fff;cursor:pointer;border:2px solid rgba(255,255,255,0.04)}
+  .story img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #ffdd;box-shadow:0 4px 12px rgba(0,0,0,0.5)}
+  .story small{margin-top:6px;opacity:0.9;font-size:12px}
+  /* FEED (vertical snap like reels) */
+  .feed { display:flex; flex-direction:column; gap:22px; padding:6px }
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.03); box-shadow:0 10px 30px rgba(0,0,0,0.6); }
+  .media-wrap{width:100%;max-height:78vh;border-radius:10px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+  .media-wrap video{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
+  /* controls row */
+  .controls{display:flex;justify-content:space-between;align-items:center;padding:10px}
+  .left-controls{display:flex;align-items:center;gap:10px}
+  .user-block{display:flex;flex-direction:column}
+  .user-block .u-name{font-weight:700}
+  .btn{background:transparent;border:none;color:var(--muted);cursor:pointer;padding:8px;border-radius:10px;display:inline-flex;align-items:center;gap:8px;font-weight:600}
+  .btn svg{width:20px;height:20px;display:block}
+  .btn.like{font-size:18px}
+  .btn.like.active{color:var(--accent)}
+  .count{font-weight:700;color:#fff}
+  .meta{padding:6px 10px 14px 10px;color:var(--muted);font-size:13px}
+  /* comments panel (white box) */
+  .comments-panel{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;width:min(680px,96%);max-height:62vh;background:#fff;color:#111;border-radius:12px;box-shadow:0 20px 50px rgba(2,6,23,0.6);overflow:hidden;display:none;flex-direction:column;z-index:140}
+  .comments-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(0,0,0,0.06)}
+  .comments-list{padding:12px;overflow:auto;flex:1;background:#fff}
+  .comment-item{padding:10px;border-radius:10px;margin-bottom:8px;background:linear-gradient(180deg,#fff,#f6f6f6);box-shadow:0 1px 0 rgba(0,0,0,0.04)}
+  .comment-compose{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(0,0,0,0.06);background:#fff}
+  .comment-compose input{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);outline:none}
+  .send-btn{padding:10px 14px;background:var(--accent);color:#fff;border-radius:8px;border:none;cursor:pointer;font-weight:700}
+  /* profile panel */
+  .profile-panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.03);color:var(--muted)}
+  .profile-top{display:flex;gap:12px;align-items:center}
+  .avatar{width:72px;height:72px;border-radius:16px;background:linear-gradient(135deg,#ff6b7a,#ff2d55)}
+  .profile-stats{display:flex;gap:12px;margin-top:8px}
+  .stat{display:flex;flex-direction:column;align-items:center}
+  .stat .n{font-weight:700;color:#fff}
+  /* upload box */
+  .upload-box{margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:8px}
+  .upload-preview{width:100%;height:200px;border-radius:10px;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .upload-preview video{width:100%;height:100%;object-fit:cover}
+  .input-file{display:flex;gap:8px;align-items:center}
+  input[type=file]{display:block}
+  .explore-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .grid-item{background:#111;border-radius:8px;overflow:hidden;height:110px;display:flex;align-items:center;justify-content:center}
+  .grid-item img, .grid-item video{width:100%;height:100%;object-fit:cover}
+  /* bottom nav */
+  .bottom-nav{position:fixed;left:0;right:0;bottom:0;height:74px;background:linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.15));display:flex;align-items:center;justify-content:center;z-index:80}
+  .bn{display:flex;gap:28px;background:transparent;padding:8px;border-radius:12px}
+  .bn button{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:22px}
+  /* light mode */
+  .light { --bg-dark:var(--light-bg); --panel:var(--light-panel); --muted:rgba(0,0,0,0.65); color:var(--light-text) }
+  /* responsive */
+  @media(max-width:980px){ .right-col{display:none} .app{padding:12px} .top-row{flex-direction:column} .feed .card{margin-bottom:12px} }
 </style>
 </head>
 <body>
 
-<!-- MAIN APP -->
-<div id="app">
-<div class="navbar">
-<h1>Swing</h1>
-<div class="icons" id="settingsBtn">⚙️</div>
-</div>
-<div class="feed" id="feed"></div>
-<div class="bottom-nav">
-<div>🏠</div>
-<div>🔍</div>
-<div>➕</div>
-<div id="logoutBtn">👤</div>
-</div>
-</div>
+  <!-- AUTH OVERLAY -->
+  <div id="authOverlay" class="auth-overlay" style="display:none">
+    <div class="auth-card" id="authCard">
+      <h2 id="authTitle">Welcome to Swing</h2>
+      <p id="authSubtitle">Sign in to continue to your feed</p>
 
-<!-- SETTINGS -->
-<div id="settingsModal">
-<h2>Settings</h2>
-<input type="text" id="changeName" placeholder="Change display name">
-<button id="saveSettings">Save</button>
-<button id="closeSettings">Close</button>
-<button id="logoutSettings">Logout</button>
-</div>
+      <input id="authUser" class="auth-input" placeholder="Username (English only)">
+      <input id="authPass" class="auth-input" placeholder="Password" type="password">
+      <button id="authAction" class="auth-btn">Login</button>
+
+      <div class="auth-switch" id="authSwitchText">
+        <span id="switchToSignUp">Don't have an account? <span style="color:var(--accent);cursor:pointer" id="showSignup">Sign up</span></span>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#666">Usernames allowed: A–Z a–z 0–9 underscore.</div>
+    </div>
+  </div>
+
+  <div class="navbar">
+    <div class="brand">
+      <div class="logo">SW</div>
+      <h1>Swing</h1>
+    </div>
+    <div class="nav-actions">
+      <button class="icon-btn" id="homeBtn" title="Home">🏠</button>
+      <button class="icon-btn" id="exploreBtn" title="Explore">🔍</button>
+      <button class="icon-btn" id="uploadBtn" title="Upload">➕</button>
+      <button class="icon-btn" id="profileBtn" title="Profile">👤</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
+      <button class="icon-btn" id="logoutBtn" title="Logout" style="display:none">🚪</button>
+    </div>
+  </div>
+
+  <div class="app" id="appRoot" style="display:none">
+    <div class="top-row">
+      <div class="left-col">
+        <!-- stories -->
+        <div class="stories" id="stories"></div>
+
+        <!-- feed -->
+        <div class="feed" id="feed"></div>
+      </div>
+
+      <aside class="right-col">
+        <div class="profile-panel" id="miniProfile">
+          <div class="profile-top">
+            <div class="avatar" id="profileAvatar"></div>
+            <div>
+              <div style="font-weight:700" id="profileName">You</div>
+              <div style="color:var(--muted);font-size:13px" id="profileBio">Demo account</div>
+              <div class="profile-stats">
+                <div class="stat"><div class="n" id="statPosts">0</div><div class="s" style="color:var(--muted)">Posts</div></div>
+                <div class="stat"><div class="n" id="statFollowers">0</div><div class="s" style="color:var(--muted)">Followers</div></div>
+                <div class="stat"><div class="n" id="statFollowing">0</div><div class="s" style="color:var(--muted)">Following</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="upload-box">
+            <div style="font-weight:700">Upload new video</div>
+            <div class="upload-preview" id="uploadPreview">Select MP4 file below</div>
+            <div class="input-file">
+              <input type="file" id="fileInput" accept="video/mp4,video/*">
+              <button id="postUpload" class="btn">Post</button>
+            </div>
+          </div>
+
+          <div style="margin-top:10px;color:var(--muted)">Tips: upload stored locally (Blob URL). For persistent hosting you need a server.</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Comments panel -->
+  <aside class="comments-panel" id="commentsPanel" aria-hidden="true">
+    <div class="comments-header">
+      <div class="comments-title" id="commentsTitle">Comments</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="closeComments" class="btn" style="color:#111;background:transparent;border-radius:8px;padding:6px">Close ✕</button>
+      </div>
+    </div>
+    <div class="comments-list" id="commentsList"></div>
+    <div class="comment-compose">
+      <input id="commentInput" placeholder="Add a comment..." aria-label="Add a comment" />
+      <button id="sendComment" class="send-btn">Post</button>
+    </div>
+  </aside>
+
+  <!-- bottom nav -->
+  <div class="bottom-nav">
+    <div class="bn">
+      <button id="bnHome">Home</button>
+      <button id="bnExplore">Explore</button>
+      <button id="bnUpload">Upload</button>
+      <button id="bnProfile">Profile</button>
+      <button id="bnSettings">Settings</button>
+    </div>
+  </div>
 
 <script>
-const feedDiv=document.getElementById("feed");
-const settingsModal=document.getElementById("settingsModal");
-const settingsBtn=document.getElementById("settingsBtn");
-const closeSettings=document.getElementById("closeSettings");
-const saveSettings=document.getElementById("saveSettings");
-const logoutSettings=document.getElementById("logoutSettings");
+/* =========================
+   Single-file Swing App + Auth
+   ========================= */
 
-// Default display name
-let displayName = "User";
+/* Utilities */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const create = (t,attrs={},html='')=>{const e=document.createElement(t);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));e.innerHTML=html;return e;}
+const storage = {
+  get(k,def){try{return JSON.parse(localStorage.getItem(k)) ?? def}catch(e){return def}},
+  set(k,v){localStorage.setItem(k,JSON.stringify(v))}
+}
 
-// Load videos
-function loadVideos(){
-  feedDiv.innerHTML="";
-  const videoData=[
-    {src:"https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",user:"@naturelover",desc:"Beautiful flowers bloom 🌸"},
-    {src:"https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",user:"@cityvibes",desc:"City lights at night 🌃"}
-  ];
-  videoData.forEach(v=>{
-    const div=document.createElement("div"); div.className="video-item";
-    div.innerHTML=`<video src="${v.src}" muted playsinline loop></video>
-    <div class="overlay"><div class="user">${v.user}</div><div class="desc">${v.desc}</div></div>
-    <div class="controls"><div class="like">❤️ <span class="count">0</span></div><div class="comment">💬</div></div>
-    <div class="comment-box"><div class="list"></div><input type="text" placeholder="Write comment and press Enter"></div>`;
-    feedDiv.appendChild(div);
+/* Persistence keys */
+const KEY_USERS = 'swing_users_v1'; // [{username,password}]
+const KEY_CURRENT = 'swing_current_user_v1'; // string username
+const KEY_POSTS = 'swing_posts_v2';
+const KEY_LIKES = 'swing_likes_v2';
+const KEY_COMMENTS = 'swing_comments_v2';
+const KEY_PROFILE = 'swing_profile_v1';
+const KEY_THEME = 'swing_theme_v1';
 
-    const video=div.querySelector("video");
-    const likeBtn=div.querySelector(".like");
-    const commentBtn=div.querySelector(".comment");
-    const commentBox=div.querySelector(".comment-box");
-    const list=commentBox.querySelector(".list");
-    const input=commentBox.querySelector("input");
-    let liked=false;
+/* Auth state */
+let users = storage.get(KEY_USERS, []); // array of {username,password}
+let currentUser = storage.get(KEY_CURRENT, '') || '';
 
-    likeBtn.addEventListener("click",()=>{
-      let count=parseInt(likeBtn.querySelector(".count").textContent);
-      count = liked ? count-1 : count+1;
-      likeBtn.querySelector(".count").textContent=count;
-      liked=!liked;
-      likeBtn.classList.add("liked"); setTimeout(()=>likeBtn.classList.remove("liked"),300);
-    });
+/* Default data (sample posts) */
+let posts = storage.get(KEY_POSTS, [
+  { id:'p1', type:'local', src:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', user:'@naturelover', desc:'Beautiful flowers bloom 🌸', created:Date.now()-100000 },
+  { id:'p2', type:'local', src:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', user:'@cityvibes', desc:'City lights at night 🌃', created:Date.now()-50000 }
+]);
+let likes = storage.get(KEY_LIKES, {}); // { postId: number }
+let comments = storage.get(KEY_COMMENTS, {}); // { postId: [ {user,text,ts} ] }
+let profile = storage.get(KEY_PROFILE, { name:'You', bio:'Demo account', followers:123, following:45 });
+let theme = storage.get(KEY_THEME, 'dark'); // 'dark' or 'light'
 
-    commentBtn.addEventListener("click",()=>{commentBox.style.display=commentBox.style.display==="flex"?"none":"flex";});
-    input.addEventListener("keydown",e=>{
-      if(e.key==="Enter" && input.value.trim()!==""){
-        const div=document.createElement("div"); div.textContent=displayName+": "+input.value.trim();
-        list.appendChild(div); input.value=""; list.scrollTop=list.scrollHeight;
+/* Ensure keys exist */
+posts.forEach(p=>{ if(typeof likes[p.id] === 'undefined') likes[p.id]=0; if(!Array.isArray(comments[p.id])) comments[p.id]=[] });
+
+/* DOM refs */
+const authOverlay = $('#authOverlay');
+const authTitle = $('#authTitle');
+const authSubtitle = $('#authSubtitle');
+const authUser = $('#authUser');
+const authPass = $('#authPass');
+const authAction = $('#authAction');
+const showSignupBtn = $('#showSignup');
+const logoutBtn = $('#logoutBtn');
+
+const appRoot = $('#appRoot');
+const feed = $('#feed');
+const storiesEl = $('#stories');
+const commentsPanel = $('#commentsPanel');
+const commentsList = $('#commentsList');
+const commentsTitle = $('#commentsTitle');
+const commentInput = $('#commentInput');
+const sendComment = $('#sendComment');
+const closeComments = $('#closeComments');
+const miniProfile = $('#miniProfile');
+const profileName = $('#profileName');
+const profileBio = $('#profileBio');
+const statPosts = $('#statPosts');
+const statFollowers = $('#statFollowers');
+const statFollowing = $('#statFollowing');
+const profileAvatar = $('#profileAvatar');
+const uploadPreview = $('#uploadPreview');
+const fileInput = $('#fileInput');
+const postUpload = $('#postUpload');
+
+/* Navigation buttons */
+$('#homeBtn').onclick = ()=>showSection('home');
+$('#exploreBtn').onclick = ()=>showSection('explore');
+$('#uploadBtn').onclick = ()=>showSection('upload');
+$('#profileBtn').onclick = ()=>showSection('profile');
+$('#settingsBtn').onclick = ()=>openSettings();
+
+/* bottom nav duplicates */
+$('#bnHome').onclick = ()=>showSection('home');
+$('#bnExplore').onclick = ()=>showSection('explore');
+$('#bnUpload').onclick = ()=>showSection('upload');
+$('#bnProfile').onclick = ()=>showSection('profile');
+$('#bnSettings').onclick = ()=>openSettings();
+
+/* Comments actions handlers */
+let activeForComments = null;
+closeComments.addEventListener('click', ()=>{ commentsPanel.style.display='none'; commentsPanel.setAttribute('aria-hidden','true'); activeForComments=null; commentInput.value=''; });
+sendComment.addEventListener('click', postComment);
+commentInput.addEventListener('keydown', e=>{ if(e.key==='Enter') postComment(); });
+
+/* Setup theme */
+function applyTheme(){ if(theme==='light'){ document.documentElement.classList.add('light'); document.body.style.background='var(--light-bg)'; document.body.style.color='var(--light-text)'; } else { document.documentElement.classList.remove('light'); document.body.style.background='var(--bg-dark)'; document.body.style.color=''; } }
+applyTheme();
+
+/* Render stories (static demo set) */
+const demoStories = [
+  {id:'s1', user:'@alice', img:'https://picsum.photos/seed/s1/200/200', content:'Story 1'},
+  {id:'s2', user:'@bob', img:'https://picsum.photos/seed/s2/200/200', content:'Story 2'},
+  {id:'s3', user:'@carol', img:'https://picsum.photos/seed/s3/200/200', content:'Story 3'},
+  {id:'s4', user:'@dave', img:'https://picsum.photos/seed/s4/200/200', content:'Story 4'}
+];
+function renderStories(){ storiesEl.innerHTML=''; demoStories.forEach(s=>{ const st = create('div',{class:'story','data-id':s.id},`<img src="${s.img}" alt=""><small>${s.user}</small>`); st.addEventListener('click', ()=>openStory(s)); storiesEl.appendChild(st); }); }
+function openStory(s){ alert(`Story from ${s.user}: ${s.content}`); }
+
+/* SECTION management */
+let currentSection = 'home';
+function showSection(sec){
+  currentSection = sec;
+  if(sec==='home'){ $('.right-col').style.display = ''; renderFeed(); }
+  else if(sec==='explore'){ $('.right-col').style.display = ''; renderExplore(); }
+  else if(sec==='upload'){ $('.right-col').style.display = ''; miniProfile.scrollIntoView({behavior:'smooth', block:'center'}); }
+  else if(sec==='profile'){ $('.right-col').style.display = ''; openProfilePanel(); }
+}
+
+/* Render feed */
+function renderFeed(){
+  feed.innerHTML='';
+  posts.slice().sort((a,b)=>b.created - a.created).forEach(p=>{
+    const card = create('article',{class:'card'});
+    card.innerHTML = `
+      <div class="media-wrap" data-id="${p.id}">
+        ${p.type==='local' ? `<video id="video-${p.id}" src="${p.src}" muted playsinline loop preload="metadata"></video>` : ''}
+      </div>
+      <div class="controls">
+        <div class="left-controls">
+          <div style="margin-right:10px;">
+            <div style="font-weight:700">${p.user}</div>
+            <div style="color:var(--muted);font-size:13px;margin-top:4px">${p.desc}</div>
+          </div>
+        </div>
+        <div class="right-controls">
+          <button class="btn likeBtn ${likes[p.id] && likes[p.id] > 0 ? 'active' : ''}" data-id="${p.id}">♥ <span class="count">${likes[p.id]||0}</span></button>
+          <button class="btn commentBtn" data-id="${p.id}">💬</button>
+        </div>
+      </div>
+      <div class="meta">Posted by <strong>${p.user}</strong></div>
+    `;
+    feed.appendChild(card);
+
+    const likeBtn = card.querySelector('.likeBtn');
+    const commentBtn = card.querySelector('.commentBtn');
+    likeBtn.addEventListener('click', ()=>toggleLike(p.id, likeBtn));
+    commentBtn.addEventListener('click', ()=>openComments(p.id));
+
+    // double-tap for like on video / media-wrap
+    const mediaWrap = card.querySelector('.media-wrap');
+    let lastTap = 0;
+    mediaWrap.addEventListener('click', (ev)=>{
+      const now = Date.now();
+      if(now - lastTap < 300){
+        // double-tap toggles like state
+        const isActive = likeBtn.classList.contains('active');
+        if(!isActive){
+          likes[p.id] = (likes[p.id]||0) + 1;
+          likeBtn.classList.add('active');
+        } else {
+          likes[p.id] = Math.max(0, (likes[p.id]||0) - 1);
+          if(likes[p.id] === 0) likeBtn.classList.remove('active');
+        }
+        likeBtn.querySelector('.count').textContent = likes[p.id];
+        storage.set(KEY_LIKES, likes);
       }
+      lastTap = now;
     });
-  });
 
-  // Auto play videos
-  document.querySelectorAll("video").forEach(v=>{
-    const r=v.getBoundingClientRect();
-    if(r.top>=0 && r.bottom<=window.innerHeight) v.play();
-    else v.pause();
-  });
-
-  document.querySelector(".feed").addEventListener("scroll",()=>{
-    document.querySelectorAll("video").forEach(v=>{
-      const r=v.getBoundingClientRect();
-      if(r.top>=0 && r.bottom<=window.innerHeight) v.play(); else v.pause();
-    });
+    // observe video for autoplay
+    if(p.type === 'local'){
+      const video = card.querySelector('video');
+      observeVideo(video);
+    }
   });
 }
 
-// Settings
-settingsBtn.onclick = ()=>settingsModal.style.display="flex";
-closeSettings.onclick = ()=>settingsModal.style.display="none";
-saveSettings.onclick = ()=>{
-  const newName=document.getElementById("changeName").value.trim();
-  if(newName!=="") displayName=newName;
-  alert("Display name changed!");
-};
-logoutSettings.onclick = ()=>{alert("Logged out");};
+/* toggle like */
+function toggleLike(id, btn){
+  const active = btn.classList.contains('active');
+  likes[id] = (likes[id] || 0) + (active ? -1 : 1);
+  if(likes[id] < 0) likes[id]=0;
+  btn.classList.toggle('active', !active);
+  btn.querySelector('.count').textContent = likes[id];
+  storage.set(KEY_LIKES, likes);
+}
 
-// Init
-loadVideos();
+/* Comments panel functions */
+let activeCommentsId = null;
+function openComments(postId){
+  activeCommentsId = postId;
+  commentsTitle.textContent = 'Comments • ' + postId;
+  renderCommentsList(postId);
+  commentsPanel.style.display = 'flex';
+  commentsPanel.setAttribute('aria-hidden','false');
+  setTimeout(()=>commentInput.focus(),100);
+}
+function renderCommentsList(postId){
+  commentsList.innerHTML = '';
+  const arr = comments[postId] || [];
+  if(arr.length === 0){ commentsList.innerHTML = '<div style="padding:12px;color:#666">No comments yet — be first!</div>'; return; }
+  arr.forEach(c=>{
+    const el = create('div',{class:'comment-item'}, `<div class="c-user">${escapeHtml(c.user)}</div><div class="c-text">${escapeHtml(c.text)}</div>`);
+    commentsList.appendChild(el);
+  });
+  commentsList.scrollTop = commentsList.scrollHeight;
+}
+function postComment(){
+  if(!currentUser){ alert('Please login to comment.'); return; }
+  const txt = commentInput.value.trim();
+  if(!txt || !activeCommentsId) return;
+  const entry = { user: currentUser, text: txt, ts: Date.now() };
+  if(!Array.isArray(comments[activeCommentsId])) comments[activeCommentsId]=[];
+  comments[activeCommentsId].push(entry);
+  storage.set(KEY_COMMENTS, comments);
+  commentInput.value='';
+  renderCommentsList(activeCommentsId);
+}
+
+/* helpers */
+function escapeHtml(s){ return (''+s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+/* Observe video autoplay via IntersectionObserver */
+let vidObserver = null;
+function observeVideo(v){
+  if(!v) return;
+  if('IntersectionObserver' in window){
+    if(!vidObserver){
+      vidObserver = new IntersectionObserver(entries=>{
+        entries.forEach(entry=>{
+          const video = entry.target;
+          if(entry.isIntersecting) video.play().catch(()=>{});
+          else video.pause();
+        })
+      }, {threshold:0.6});
+    }
+    vidObserver.observe(v);
+  } else {
+    try{ v.play(); }catch(e){}
+  }
+}
+
+/* Upload handling: preview & add to posts */
+let uploadURL = null;
+fileInput.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  if(!f.type.startsWith('video')){ alert('Please select a video file'); return; }
+  if(uploadURL) URL.revokeObjectURL(uploadURL);
+  uploadURL = URL.createObjectURL(f);
+  uploadPreview.innerHTML = `<video src="${uploadURL}" controls muted playsinline style="width:100%;height:100%;object-fit:cover"></video>`;
+});
+postUpload.addEventListener('click', ()=>{
+  if(!uploadURL){ alert('Select a video file first'); return; }
+  const id = 'u' + Date.now();
+  const newPost = { id, type:'local', src: uploadURL, user: currentUser?('@'+currentUser):profile.name||'@you', desc: 'Uploaded video', created: Date.now() };
+  posts.push(newPost);
+  likes[id]=0; comments[id]=[];
+  storage.set(KEY_POSTS, posts);
+  storage.set(KEY_LIKES, likes);
+  storage.set(KEY_COMMENTS, comments);
+  uploadPreview.innerHTML = 'Select MP4 file below';
+  fileInput.value = '';
+  uploadURL = null;
+  renderFeed();
+  updateProfileStats();
+  alert('Uploaded to feed (local only).');
+});
+
+/* PROFILE panel */
+function openProfilePanel(){
+  profileName.textContent = currentUser ? currentUser : profile.name;
+  profileBio.textContent = profile.bio;
+  statPosts.textContent = posts.length;
+  statFollowers.textContent = profile.followers;
+  statFollowing.textContent = profile.following;
+}
+function updateProfileStats(){ statPosts.textContent = posts.length; }
+
+/* EXPLORE / SEARCH */
+function renderExplore(){
+  feed.innerHTML = '';
+  const wrap = create('div',{class:'card'}, '<div style="padding:10px;font-weight:700">Explore</div>');
+  const grid = create('div',{class:'explore-grid'});
+  posts.forEach(p=>{
+    const item = create('div',{class:'grid-item'}, p.type==='local' ? `<video src="${p.src}" muted playsinline></video>` : `<div style="padding:6px;color:var(--muted)">No thumbnail</div>`);
+    item.addEventListener('click', ()=>{ showSection('home'); setTimeout(()=> openComments(p.id),300); });
+    grid.appendChild(item);
+  });
+  wrap.appendChild(grid);
+  feed.appendChild(wrap);
+}
+
+/* Settings modal simple prompt */
+function openSettings(){
+  const choice = prompt('Settings:\n1) Toggle theme\n2) Clear stored data (except accounts)\n3) About\nEnter 1/2/3','1');
+  if(choice === '1'){ theme = (theme === 'dark' ? 'light':'dark'); storage.set(KEY_THEME, theme); applyTheme(); alert('Theme changed to '+theme); }
+  else if(choice === '2'){ if(confirm('Clear posts/likes/comments?')){ localStorage.removeItem(KEY_POSTS); localStorage.removeItem(KEY_LIKES); localStorage.removeItem(KEY_COMMENTS); posts=[]; likes={}; comments={}; storage.set(KEY_POSTS, posts); storage.set(KEY_LIKES, likes); storage.set(KEY_COMMENTS, comments); renderFeed(); updateProfileStats(); alert('Cleared'); } }
+  else if(choice === '3'){ alert('Swing Demo — Instagram-like features\nSingle-file demo.'); }
+}
+
+/* ---------- AUTH: Register / Login / Logout ---------- */
+function showAuthOverlay(mode='login'){ // mode = 'login' | 'signup'
+  authOverlay.style.display = 'flex';
+  if(mode === 'login'){
+    authTitle.textContent = 'Welcome back to Swing';
+    authSubtitle.textContent = 'Sign in to continue to your feed';
+    authAction.textContent = 'Login';
+    showSignupBtn.innerText = "Don't have an account? Sign up";
+  } else {
+    authTitle.textContent = 'Create your Swing account';
+    authSubtitle.textContent = 'Register a new username (English only)';
+    authAction.textContent = 'Sign up';
+    showSignupBtn.innerText = "Already have an account? Login";
+  }
+  authUser.value = '';
+  authPass.value = '';
+  authAction.onclick = ()=> { if(mode==='login') doLogin(); else doSignUp(); };
+  showSignupBtn.onclick = ()=> { showAuthOverlay(mode === 'login' ? 'signup' : 'login'); };
+}
+function hideAuthOverlay(){ authOverlay.style.display = 'none'; }
+
+/* Sign up */
+function doSignUp(){
+  const u = authUser.value.trim();
+  const p = authPass.value;
+  if(!/^[A-Za-z0-9_]+$/.test(u)){ alert('Username must be English letters, numbers or underscore only.'); return; }
+  if(p.length < 3){ alert('Password must be at least 3 characters'); return; }
+  if(users.some(x=>x.username === u)){ alert('Username already exists'); return; }
+  users.push({username:u, password:p});
+  storage.set(KEY_USERS, users);
+  currentUser = u;
+  storage.set(KEY_CURRENT, currentUser);
+  hideAuthOverlay();
+  onLoginSuccess();
+}
+
+/* Login */
+function doLogin(){
+  const u = authUser.value.trim();
+  const p = authPass.value;
+  const found = users.find(x=>x.username === u && x.password === p);
+  if(!found){ alert('Incorrect username or password'); return; }
+  currentUser = u;
+  storage.set(KEY_CURRENT, currentUser);
+  hideAuthOverlay();
+  onLoginSuccess();
+}
+
+/* Logout */
+function doLogout(){
+  if(confirm('Logout?')) {
+    currentUser = '';
+    storage.set(KEY_CURRENT, '');
+    // hide app and show auth overlay
+    appRoot.style.display = 'none';
+    logoutBtn.style.display = 'none';
+    showAuthOverlay('login');
+  }
+}
+
+/* Hook logout button */
+logoutBtn.addEventListener('click', doLogout);
+
+/* on successful login */
+function onLoginSuccess(){
+  // show app UI
+  appRoot.style.display = '';
+  logoutBtn.style.display = '';
+  // update profile name to username
+  openProfilePanel();
+  renderStories();
+  renderFeed();
+  applyTheme();
+  updateProfileStats();
+  // scroll to top of feed
+  window.scrollTo(0,0);
+}
+
+/* Initialize UI & Auth check */
+function init(){
+  // show auth if no current user
+  if(currentUser){
+    // ensure display
+    appRoot.style.display = '';
+    logoutBtn.style.display = '';
+    openProfilePanel();
+    renderStories();
+    renderFeed();
+  } else {
+    // show auth overlay (login by default)
+    showAuthOverlay('login');
+    appRoot.style.display = 'none';
+    logoutBtn.style.display = 'none';
+  }
+  // wire showSignup link click (also ensure it toggles)
+  showSignupBtn.onclick = ()=> showAuthOverlay('signup');
+  // wire logout in settings (also present)
+  $('#bnSettings').addEventListener('click', openSettings);
+}
+init();
+
+/* Expose debug */
+window._SWING = { posts, likes, comments, users, currentUser, storage };
+
+/* Save storage periodically */
+setInterval(()=>{ storage.set(KEY_POSTS, posts); storage.set(KEY_LIKES, likes); storage.set(KEY_COMMENTS, comments); storage.set(KEY_PROFILE, profile); storage.set(KEY_THEME, theme); storage.set(KEY_USERS, users); storage.set(KEY_CURRENT, currentUser); }, 5000);
 </script>
+
 </body>
 </html>
