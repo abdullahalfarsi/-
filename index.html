@@ -410,6 +410,18 @@ tr:last-child td{border-bottom:0}
   .hero-bar{left:50%;transform:translateX(-50%);bottom:10px}.hero-count{display:none}}
 @media (prefers-reduced-motion:reduce){.hero-slide,.hero-slide.on,.hero-slide.out{transform:none!important;filter:none!important;transition:opacity .4s ease!important}.hero-cap img,.hero-cap div{animation:none}}
 
+/* ---------- v6: pledge read-to-unlock ---------- */
+.pl-hint{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--warn);background:rgba(226,169,59,.08);border:1px solid rgba(226,169,59,.3);border-radius:10px;padding:9px 14px;transition:color .3s,background .3s,border-color .3s}
+.pl-hint.done{color:var(--ok);background:rgba(63,185,122,.08);border-color:rgba(63,185,122,.35)}
+.pl-hint.nudge{animation:nudge .45s ease}
+@keyframes nudge{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+.pl-prog{flex:none;width:110px;height:6px;border-radius:3px;background:rgba(197,204,214,.15);overflow:hidden;direction:rtl}
+.pl-prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--warn),#f1d08f);border-radius:3px;transition:width .2s ease}
+.pl-hint.done .pl-prog i{background:var(--ok)}
+.pledge-box.locked{opacity:.5;cursor:not-allowed;border-style:dashed}
+.pledge-box.locked:hover{border-color:rgba(52,99,201,.45)}
+.pledge-box.locked input{cursor:not-allowed}
+
 details summary{font-weight:600}
 </style>
 </head>
@@ -559,7 +571,7 @@ async function loadAll(){
 }
 function clearData(){S.members={};S.reports=[];S.violations=[];S.me=null;S.uid=null;S.draft=null;S.view="home";
   S.notifs=[];S.notifMax=null;S.bellOpen=false;S.audit=[];S.lb={cur:[],prev:[]};S.invites=[];S.issued=null;
-  S.resets=[];S.inv=null;S.conceptEdit=false;setPledgePending(null);
+  S.resets=[];S.inv=null;S.conceptEdit=false;S.pledgeRead=false;setPledgePending(null);
   if(S.channel){S.sb.removeChannel(S.channel);S.channel=null}}
 
 /* ---------- boot ---------- */
@@ -1303,15 +1315,32 @@ function pledgeHTML(){
   return `<div class="pledge-page"><div class="pledge-card">
     <div class="pledge-top"><img src="${LOGO}" alt=""><div><b>فرقة الرصد والمتابعة</b><small>${esc(S.me.name)} · <span class="mono">${esc(codeLabel(S.me.codeType,S.me.num))}</span></small></div></div>
     ${updated?`<div class="banner">تم تحديث المفهوم${c.updatedBy?` بواسطة ${esc(c.updatedBy)}`:""}. اقرأه من جديد ووافق على التعهد.</div>`:`<p class="pledge-lead">قبل الدخول، اقرأ مفهوم آلية العمل ووافق على التعهد.</p>`}
-    <div class="concept-doc pledge-doc" tabindex="0">${renderConcept(c.text)}</div>
-    <label class="pledge-box"><input type="checkbox" id="pl-ok"><span><b>التعهد</b>${esc(pledgeText(S.me))}</span></label>
+    <div class="concept-doc pledge-doc" tabindex="0" aria-label="نص المفهوم">${renderConcept(c.text)}</div>
+    <div class="pl-hint ${S.pledgeRead?"done":""}" id="pl-hint" aria-live="polite">
+      <span class="pl-prog"><i id="pl-bar" style="width:${S.pledgeRead?100:0}%"></i></span>
+      <span id="pl-hint-tx">${S.pledgeRead?"قرأت المفهوم كامل. الحين تقدر توافق على التعهد":"انزل لآخر المفهوم عشان يتفعّل التعهد"}</span>
+    </div>
+    <label class="pledge-box ${S.pledgeRead?"":"locked"}" id="pl-box"><input type="checkbox" id="pl-ok" ${S.pledgeRead?"":"disabled"}><span><b>التعهد</b>${esc(pledgeText(S.me))}</span></label>
     <div class="err" id="pl-err"></div>
     <div class="pledge-actions"><button class="btn btn-primary" id="pl-go" disabled>أتعهد وأدخل</button><button class="btn btn-ghost" id="pl-out">خروج</button></div>
   </div></div>`;
 }
 function bindPledge(){
-  const ok=$("#pl-ok"),go=$("#pl-go");
+  const ok=$("#pl-ok"),go=$("#pl-go"),doc=$(".pledge-doc"),bar=$("#pl-bar"),box=$("#pl-box"),hint=$("#pl-hint");
   ok.onchange=()=>{go.disabled=!ok.checked};
+  const unlock=()=>{if(S.pledgeRead&&!ok.disabled)return;S.pledgeRead=true;ok.disabled=false;box.classList.remove("locked");
+    hint.classList.add("done");bar.style.width="100%";$("#pl-hint-tx").textContent="قرأت المفهوم كامل. الحين تقدر توافق على التعهد"};
+  const check=()=>{
+    if(S.pledgeRead)return;
+    const max=doc.scrollHeight-doc.clientHeight;
+    const pr=max<=4?1:Math.min(1,doc.scrollTop/max);
+    bar.style.width=Math.round(pr*100)+"%";
+    if(pr>=0.98)unlock();
+  };
+  doc.addEventListener("scroll",check,{passive:true});
+  window.addEventListener("resize",check);
+  requestAnimationFrame(check);
+  box.addEventListener("click",e=>{if(ok.disabled){e.preventDefault();hint.classList.remove("nudge");void hint.offsetWidth;hint.classList.add("nudge")}});
   $("#pl-out").onclick=e=>doLogout(e.currentTarget);
   go.onclick=async()=>{
     if(!ok.checked)return;
@@ -1322,7 +1351,7 @@ function bindPledge(){
       S.me.pledgeVersion=+data||S.concept.version;S.me.pledgeAt=Date.now();
       if(S.members[S.me.key])Object.assign(S.members[S.me.key],{pledgeVersion:S.me.pledgeVersion,pledgeAt:S.me.pledgeAt});
     }
-    setPledgePending(null);S.view="home";render();window.scrollTo({top:0});toast("أهلاً "+S.me.name);
+    setPledgePending(null);S.pledgeRead=false;S.view="home";render();window.scrollTo({top:0});toast("أهلاً "+S.me.name);
   };
 }
 function conceptHTML(){
