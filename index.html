@@ -422,6 +422,28 @@ tr:last-child td{border-bottom:0}
 .pledge-box.locked:hover{border-color:rgba(52,99,201,.45)}
 .pledge-box.locked input{cursor:not-allowed}
 
+/* ---------- v7: suggestions ---------- */
+.sg-new{gap:14px}
+.sg-from{display:flex;align-items:center;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.sg-avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(160deg,var(--navy-hi),var(--navy));color:#fff;font-family:var(--f-display);font-size:18px;flex:none}
+.sg-from small{display:block;color:var(--steel-dim);font-size:12px}
+.sg-from b{font-size:14.5px}
+.sg-count{text-align:left;color:var(--steel-dim);font-size:12px}
+.sg-list{display:grid;gap:10px}
+.sg{background:var(--panel);border:1px solid var(--line);border-inline-start:3px solid var(--c,var(--line));border-radius:12px;padding:14px 16px;display:grid;gap:8px;animation:rise .35s ease both}
+.sg.new{--c:var(--warn)}.sg.seen{--c:var(--navy-hi)}.sg.done{--c:var(--ok)}
+.sg header{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
+.sg header .mono{color:var(--steel-dim);font-size:12.5px}
+.sg header time{margin-inline-start:auto;color:var(--steel-dim);font-size:12px}
+.sg>p{margin:0;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
+.chip.seen{color:#9db6ec;background:rgba(52,99,201,.15)}
+.sg-reply{background:rgba(63,185,122,.08);border:1px solid rgba(63,185,122,.3);border-radius:10px;padding:10px 12px}
+.sg-reply small{color:var(--ok);font-size:12px;font-weight:600}
+.sg-reply p{margin:4px 0 0;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
+.sg-act{display:flex;gap:8px;flex-wrap:wrap}
+.sg-form{display:grid;gap:8px}
+.sg-form textarea{min-height:80px}
+
 details summary{font-weight:600}
 </style>
 </head>
@@ -482,6 +504,7 @@ const S = {
   view:"home", gateTab:"login", filter:"pending",
   rf:{q:"",type:"",from:"",to:""}, inv:null, invSort:"a", invShow:"all", vf:"", vlvl:"warn",
   concept:null, v4:true, resets:[], needPledge:false, conceptEdit:false,
+  suggs:[], sf:"new", v5:true,
   draft:null, channel:null, invites:[], issued:null, iperms:{review:false,manage:false},
   notifs:[], notifMax:null, bellOpen:false, audit:[], af:{cat:"",q:"",from:"",to:""}, lb:{cur:[],prev:[]},
 };
@@ -547,6 +570,12 @@ async function fetchSettings(){
   if(error||!data||!data.length){S.v4=false;S.concept={text:CONCEPT_DEFAULT,version:1,updatedBy:"",updatedAt:0};return}
   const r=data[0];S.v4=true;S.concept={text:r.value,version:r.version||1,updatedBy:r.updated_by||"",updatedAt:ms(r.updated_at)};
 }
+const mapSugg=r=>({id:r.id,memberKey:r.member_id,name:r.member_name||"",code:r.member_code||"",body:r.body,status:r.status,reply:r.reply||"",repliedBy:r.replied_by||"",repliedAt:ms(r.replied_at),createdAt:ms(r.created_at)});
+async function fetchSuggs(){
+  const {data,error}=await S.sb.from("suggestions").select("*").order("created_at",{ascending:false}).limit(500);
+  if(error){S.v5=false;S.suggs=[];return}
+  S.v5=true;S.suggs=data.map(mapSugg);
+}
 async function fetchResets(){
   const {data,error}=await S.sb.from("report_resets").select("*").order("at",{ascending:false}).limit(50);
   S.resets=error||!data?[]:data.map(r=>({id:r.id,at:r.at,by:r.by_label||"",note:r.note||""}));
@@ -554,7 +583,7 @@ async function fetchResets(){
 const debounced={};
 function refetch(name,fn){clearTimeout(debounced[name]);debounced[name]=setTimeout(async()=>{try{await fn();render()}catch(e){}},250)}
 async function loadAll(){
-  try{await fetchMembers();await Promise.all([fetchReports(),fetchViol(),fetchInvites(),fetchNotifs(),fetchAudit(),fetchLb(),fetchSettings(),fetchResets()]);S.loadErr=""}
+  try{await fetchMembers();await Promise.all([fetchReports(),fetchViol(),fetchInvites(),fetchNotifs(),fetchAudit(),fetchLb(),fetchSettings(),fetchResets(),fetchSuggs()]);S.loadErr=""}
   catch(e){S.loadErr="تعذّر تحميل البيانات: "+(e.message||"خطأ غير معروف")}
   S.ready=true;render();
   if(!S.channel){
@@ -564,6 +593,7 @@ async function loadAll(){
       .on("postgres_changes",{event:"*",schema:"public",table:"notifications"},()=>refetch("n",fetchNotifs))
       .on("postgres_changes",{event:"*",schema:"public",table:"settings"},()=>refetch("s",fetchSettings))
       .on("postgres_changes",{event:"*",schema:"public",table:"report_resets"},()=>refetch("rs",fetchResets))
+      .on("postgres_changes",{event:"*",schema:"public",table:"suggestions"},()=>refetch("sg",fetchSuggs))
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"audit_log"},()=>refetch("a",fetchAudit))
       .on("postgres_changes",{event:"*",schema:"public",table:"violations"},()=>refetch("v",fetchViol))
       .subscribe();
@@ -571,7 +601,7 @@ async function loadAll(){
 }
 function clearData(){S.members={};S.reports=[];S.violations=[];S.me=null;S.uid=null;S.draft=null;S.view="home";
   S.notifs=[];S.notifMax=null;S.bellOpen=false;S.audit=[];S.lb={cur:[],prev:[]};S.invites=[];S.issued=null;
-  S.resets=[];S.inv=null;S.conceptEdit=false;S.pledgeRead=false;setPledgePending(null);
+  S.resets=[];S.inv=null;S.conceptEdit=false;S.pledgeRead=false;S.suggs=[];setPledgePending(null);
   if(S.channel){S.sb.removeChannel(S.channel);S.channel=null}}
 
 /* ---------- boot ---------- */
@@ -704,7 +734,9 @@ function shellHTML(){
   if(rev)tabs.push(["review","مراجعة التقارير"]);
   if(rev||mng)tabs.push(["inventory","الجرد"]);
   if(mng)tabs.push(["violations","المخالفات"],["members","الأفراد والأكواد"],["audit","السجل"]);
-  const badge=id=>id==="review"&&pend?pend:id==="members"&&joinReq?joinReq:0;
+  tabs.push(["suggest","اقتراح"]);
+  const newSugg=(rev||mng)?S.suggs.filter(x=>x.status==="new"&&x.memberKey!==S.me.key).length:0;
+  const badge=id=>id==="review"&&pend?pend:id==="members"&&joinReq?joinReq:id==="suggest"&&newSugg?newSugg:0;
   return `<header class="top"><div class="wrap">
       <div class="brand"><img src="${LOGO}" alt=""><div><b>فرقة الرصد والمتابعة</b><small>الدوريات الأمنية</small></div></div>
       <div class="who"><span class="tag">${esc(S.me.name)} · <span class="mono">${esc(codeLabel(S.me.codeType,S.me.num))}</span></span>
@@ -715,7 +747,7 @@ function shellHTML(){
   </header>
   <main class="wrap">${S.loadErr?`<div class="banner">${esc(S.loadErr)}</div>`:""}${
     S.view==="new"?newHTML(): S.view==="review"&&rev?reviewHTML(): S.view==="members"&&mng?membersHTML():
-    S.view==="inventory"&&(rev||mng)?invHTML(): S.view==="violations"&&mng?violHTML(): S.view==="audit"&&mng?auditHTML(): S.view==="concept"?conceptHTML(): homeHTML()}</main>`;
+    S.view==="inventory"&&(rev||mng)?invHTML(): S.view==="violations"&&mng?violHTML(): S.view==="audit"&&mng?auditHTML(): S.view==="concept"?conceptHTML(): S.view==="suggest"?suggHTML(): homeHTML()}</main>`;
 }
 function bindShell(){
   $("#logout").onclick=e=>{e.stopPropagation();doLogout(e.currentTarget)};
@@ -734,6 +766,7 @@ function bindShell(){
   if(S.view==="members"&&canManage(S.me))bindMembers();
   if(S.view==="audit"&&canManage(S.me))bindAudit();
   if(S.view==="concept")bindConcept();
+  if(S.view==="suggest")bindSugg();
   bindBell();
 }
 
@@ -959,7 +992,7 @@ async function resubmitReport(d,t,err,btn){
 }
 
 /* ---------- notifications ---------- */
-const NOTIF_ICON={accepted:["✓","ok"],rejected:["✕","bad"],violation:["!","warn"],perms:["★","navy"],welcome:["◆","navy"],activate:["◆","navy"],concept:["◆","warn"],reset:["↺","navy"]};
+const NOTIF_ICON={accepted:["✓","ok"],rejected:["✕","bad"],violation:["!","warn"],perms:["★","navy"],welcome:["◆","navy"],activate:["◆","navy"],concept:["◆","warn"],suggestion:["✎","navy"],suggestion_reply:["✉","ok"],suggestion_seen:["✓","navy"],reset:["↺","navy"]};
 function bellHTML(){
   const unread=S.notifs.filter(n=>!n.read).length;
   return `<div class="bell-wrap"><button class="bell ${unread?"has":""}" id="bell" aria-label="الإشعارات${unread?` (${unread} جديدة)`:""}" aria-expanded="${S.bellOpen}">
@@ -985,6 +1018,7 @@ function bindBell(){
     e.stopPropagation();const n=S.notifs.find(x=>String(x.id)===el.dataset.nt);if(!n)return;
     S.bellOpen=false;if(!n.read)markRead([n.id]);
     if(n.kind==="concept"){S.view="concept";render()}
+    else if(String(n.kind).startsWith("suggestion")){S.view="suggest";S.sf=n.kind==="suggestion"?"new":S.sf;render()}
     else if(n.reportId&&S.reports.some(r=>r.id===n.reportId)){S.view="home";render();openReport(n.reportId)}
     else{S.view="home";render()}
   });
@@ -1255,6 +1289,71 @@ function mountHero(){
   heroRestart();   // إعادة الإدراج تعيد حركة شريط التقدم، فنعيد ضبط المؤقت معها
 }
 
+/* ---------- suggestions ---------- */
+const SUGG_ST={new:["جديد","pending"],seen:["تمت القراءة","seen"],done:["تم الرد","accepted"]};
+function suggCard(x,inbox){
+  const [lab,cls]=SUGG_ST[x.status]||SUGG_ST.new;
+  return `<article class="sg ${x.status}">
+    <header>${inbox?`<b>${esc(x.name)}</b><span class="mono">${esc(x.code)}</span>`:`<b>اقتراحي</b>`}<span class="chip ${cls}">${lab}</span><time>${fmtDate(x.createdAt)}</time></header>
+    <p>${esc(x.body)}</p>
+    ${x.reply?`<div class="sg-reply"><small>رد ${esc(x.repliedBy||"القيادة")} · ${fmtDate(x.repliedAt)}</small><p>${esc(x.reply)}</p></div>`:""}
+    ${inbox?`<div class="sg-act">
+      ${x.status==="new"?`<button class="btn btn-ghost btn-sm" data-sseen="${x.id}">تمت القراءة</button>`:""}
+      <button class="btn btn-ghost btn-sm" data-sreply="${x.id}">${x.reply?"تعديل الرد":"رد"}</button>
+      ${canManage(S.me)?`<button class="btn btn-ghost btn-sm" data-sdel="${x.id}">حذف</button>`:""}
+    </div>
+    <div class="sg-form" id="sr-${x.id}" hidden><textarea id="srt-${x.id}" maxlength="1000" placeholder="اكتب ردك على الاقتراح…">${esc(x.reply)}</textarea>
+      <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" data-ssend="${x.id}">إرسال الرد</button><button class="btn btn-ghost btn-sm" data-scancel="${x.id}">إلغاء</button></div></div>`
+    :x.status==="new"?`<div class="sg-act"><button class="btn btn-ghost btn-sm" data-sdel="${x.id}">سحب الاقتراح</button></div>`:""}
+  </article>`;
+}
+function suggHTML(){
+  const inboxOn=isReviewer(S.me)||canManage(S.me);
+  const mine=S.suggs.filter(x=>x.memberKey===S.me.key);
+  const inbox=S.suggs.filter(x=>x.memberKey!==S.me.key);
+  const f=S.sf,list=f==="all"?inbox:inbox.filter(x=>x.status===f);
+  const n=k=>k==="all"?inbox.length:inbox.filter(x=>x.status===k).length;
+  if(!S.v5)return `<section class="view"><div class="banner">الاقتراحات تحتاج تحديث قاعدة البيانات (update-v5.sql). تواصل مع القيادة.</div></section>`;
+  return `<section class="view">
+    <div class="section-h"><div><h2>اقتراح</h2><p>اقتراحك يوصل لقيادة الفرقة والمسؤولين مباشرة، وبيوصلك إشعار إذا ردّوا عليه</p></div></div>
+    <form class="card sg-new" id="sform">
+      <div class="sg-from"><span class="sg-avatar">${esc((S.me.name||"؟").trim().charAt(0))}</span><div><small>المرسل</small><b>${esc(S.me.name)} · <span class="mono">${esc(codeLabel(S.me.codeType,S.me.num))}</span></b></div></div>
+      <label class="field"><span>اقتراحك</span><textarea id="s-body" maxlength="2000" placeholder="اكتب اقتراحك لتطوير الفرقة أو العمل الميداني…"></textarea>
+        <small class="sg-count"><span id="s-n">0</span> / 2000</small></label>
+      <div class="err" id="s-err"></div>
+      <button class="btn btn-primary" id="s-go" style="justify-self:start">إرسال للإدارة</button>
+    </form>
+    ${mine.length?`<div class="section-h"><h2>اقتراحاتي</h2></div><div class="sg-list">${mine.map(x=>suggCard(x,false)).join("")}</div>`:""}
+    ${inboxOn?`<div class="section-h"><div><h2>الاقتراحات الواردة</h2><p>من أفراد الفرقة · تظهر لأصحاب صلاحية المراجعة والإدارة</p></div></div>
+      <div class="filters">${[["new","جديد"],["seen","تمت القراءة"],["done","تم الرد"],["all","الكل"]].map(([k,l])=>`<button class="pill ${f===k?"on":""}" data-sf="${k}">${l} <span class="mono">${n(k)}</span></button>`).join("")}</div>
+      <div class="sg-list">${list.length?list.map(x=>suggCard(x,true)).join(""):`<div class="empty"><b>لا توجد اقتراحات هنا</b>${f==="new"?"كل الاقتراحات تمت قراءتها.":"الاقتراحات الواردة بتظهر هنا."}</div>`}</div>`:""}
+  </section>`;
+}
+function bindSugg(){
+  const body=$("#s-body");if(!body)return;
+  body.oninput=()=>{$("#s-n").textContent=body.value.length};
+  $("#sform").onsubmit=async e=>{
+    e.preventDefault();const err=$("#s-err"),t=body.value.trim();err.textContent="";
+    if(t.length<5){err.textContent="اكتب اقتراحك بشكل أوضح.";return}
+    const b=$("#s-go");b.disabled=true;b.innerHTML='<span class="loader"></span>';
+    const {data,error}=await S.sb.from("suggestions").insert({body:t}).select().single();
+    if(error){b.disabled=false;b.textContent="إرسال للإدارة";err.textContent=/too_many/.test(error.message)?"وصلت الحد اليومي (٥ اقتراحات). جرّب بكرة.":"تعذّر الإرسال: "+error.message;return}
+    S.suggs=[mapSugg(data),...S.suggs.filter(x=>x.id!==data.id)];render();toast("تم إرسال اقتراحك للإدارة");
+  };
+  document.querySelectorAll("[data-sf]").forEach(b=>b.onclick=()=>{S.sf=b.dataset.sf;render()});
+  const upd=async(id,val,msg)=>{const {data,error}=await S.sb.from("suggestions").update(val).eq("id",id).select().single();
+    if(error){toast("تعذّر الحفظ: "+error.message);return false}S.suggs=S.suggs.map(x=>x.id===id?mapSugg(data):x);render();toast(msg);return true};
+  document.querySelectorAll("[data-sseen]").forEach(b=>b.onclick=()=>{b.disabled=true;upd(b.dataset.sseen,{status:"seen"},"تم تحديده كمقروء")});
+  document.querySelectorAll("[data-sreply]").forEach(b=>b.onclick=()=>{const f=$("#sr-"+b.dataset.sreply);f.hidden=!f.hidden;if(!f.hidden)$("#srt-"+b.dataset.sreply).focus()});
+  document.querySelectorAll("[data-scancel]").forEach(b=>b.onclick=()=>{$("#sr-"+b.dataset.scancel).hidden=true});
+  document.querySelectorAll("[data-ssend]").forEach(b=>b.onclick=()=>{const id=b.dataset.ssend,t=$("#srt-"+id).value.trim();
+    if(t.length<2){toast("اكتب الرد أول");return}b.disabled=true;upd(id,{reply:t},"تم إرسال الرد").then(ok=>{if(!ok)b.disabled=false})});
+  document.querySelectorAll("[data-sdel]").forEach(b=>b.onclick=async()=>{
+    if(b.dataset.sure!=="1"){b.dataset.sure="1";b.textContent="تأكيد";return}
+    b.disabled=true;const {error}=await S.sb.from("suggestions").delete().eq("id",b.dataset.sdel);
+    if(error){b.disabled=false;toast("تعذّر الحذف");return}S.suggs=S.suggs.filter(x=>x.id!==b.dataset.sdel);render();toast("تم الحذف")});
+}
+
 /* ---------- concept & pledge ---------- */
 const CONCEPT_DEFAULT=`بسم الله الرحمن الرحيم
 
@@ -1329,16 +1428,16 @@ function bindPledge(){
   const ok=$("#pl-ok"),go=$("#pl-go"),doc=$(".pledge-doc"),bar=$("#pl-bar"),box=$("#pl-box"),hint=$("#pl-hint");
   ok.onchange=()=>{go.disabled=!ok.checked};
   const unlock=()=>{if(S.pledgeRead&&!ok.disabled)return;S.pledgeRead=true;ok.disabled=false;box.classList.remove("locked");
-    hint.classList.add("done");bar.style.width="100%";$("#pl-hint-tx").textContent="قرأت المفهوم كامل. الحين تقدر توافق على التعهد"};
+    hint.classList.add("done");bar.style.width="100%";const tx=hint.querySelector("#pl-hint-tx");if(tx)tx.textContent="قرأت المفهوم كامل. الحين تقدر توافق على التعهد"};
   const check=()=>{
-    if(S.pledgeRead)return;
+    if(S.pledgeRead||!doc.isConnected)return;
     const max=doc.scrollHeight-doc.clientHeight;
     const pr=max<=4?1:Math.min(1,doc.scrollTop/max);
     bar.style.width=Math.round(pr*100)+"%";
     if(pr>=0.98)unlock();
   };
   doc.addEventListener("scroll",check,{passive:true});
-  window.addEventListener("resize",check);
+  window.onresize=check;   // مستمع واحد يُستبدل مع كل عرض للصفحة
   requestAnimationFrame(check);
   box.addEventListener("click",e=>{if(ok.disabled){e.preventDefault();hint.classList.remove("nudge");void hint.offsetWidth;hint.classList.add("nudge")}});
   $("#pl-out").onclick=e=>doLogout(e.currentTarget);
