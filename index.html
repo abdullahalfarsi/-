@@ -444,6 +444,33 @@ tr:last-child td{border-bottom:0}
 .sg-form{display:grid;gap:8px}
 .sg-form textarea{min-height:80px}
 
+/* ---------- v8: participants, stamps, duplicates ---------- */
+.tally{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;gap:12px}
+.tally-h{display:flex;justify-content:space-between;align-items:baseline;gap:6px 14px;flex-wrap:wrap}
+.tally-h b{font-family:var(--f-display);font-size:18px}
+.tally-h small{color:var(--steel-dim);font-size:12.5px}
+.tally-grid{display:grid;grid-template-columns:1fr auto 1fr auto 1.15fr;gap:10px;align-items:stretch}
+.tc{background:rgba(7,12,23,.45);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:2px;min-width:0}
+.tc span{color:var(--steel-dim);font-size:12.5px}
+.tc b{font-size:30px;line-height:1.15}
+.tc small{color:var(--steel);font-size:12.5px}.tc small i{font-style:normal;color:var(--ok)}
+.tc.sum{border-color:rgba(52,99,201,.5);background:linear-gradient(160deg,rgba(52,99,201,.22),rgba(30,61,130,.08))}
+.tc.sum b{color:#fff}
+.op{display:grid;place-items:center;color:var(--steel-dim);font-size:22px;font-family:var(--f-mono)}
+@media (max-width:640px){.tally-grid{grid-template-columns:1fr 1fr}.op{display:none}.tc.sum{grid-column:1/-1}}
+.part-tag{display:inline-block;font-size:11.5px;font-weight:700;color:#9db6ec;background:rgba(52,99,201,.16);border-radius:6px;padding:1px 7px;vertical-align:middle}
+.dup-badge{display:inline-block;font-size:11.5px;font-weight:700;color:#f3b2ab;background:rgba(226,87,76,.14);border-radius:6px;padding:1px 7px;vertical-align:middle}
+.dup-warn{display:grid;gap:4px;background:rgba(226,87,76,.08);border:1px solid rgba(226,87,76,.4);border-radius:10px;padding:10px 14px;font-size:13px;color:#f3b2ab}
+.dup-warn b{color:#ff9d93}
+.dup-warn small{color:var(--steel-dim)}
+.thumb.dup{outline:2px solid var(--bad);outline-offset:-2px}
+.dup-tag{position:absolute;bottom:5px;right:5px;background:var(--bad);color:#fff;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 6px}
+.stamp-note{color:var(--steel-dim);font-size:12px}
+.credit{display:block;margin-top:6px;color:#9db6ec;font-size:12.5px}
+.inv-t th small{font-weight:500;color:var(--steel-dim);font-size:11px}
+.inv-t td.sa{font-weight:700;color:#fff;background:rgba(52,99,201,.1)}
+.inv-note{margin:8px 4px 0;color:var(--steel-dim);font-size:12.5px}
+
 details summary{font-weight:600}
 </style>
 </head>
@@ -502,7 +529,7 @@ const S = {
   sb:null, uid:null, ready:false, loadErr:"", authBusy:false,
   members:{}, reports:[], violations:[], me:null,
   view:"home", gateTab:"login", filter:"pending",
-  rf:{q:"",type:"",from:"",to:""}, inv:null, invSort:"a", invShow:"all", vf:"", vlvl:"warn",
+  rf:{q:"",type:"",from:"",to:""}, inv:null, invSort:"sa", invShow:"all", vf:"", vlvl:"warn",
   concept:null, v4:true, resets:[], needPledge:false, conceptEdit:false,
   suggs:[], sf:"new", v5:true,
   draft:null, channel:null, invites:[], issued:null, iperms:{review:false,manage:false},
@@ -519,6 +546,8 @@ const canManage = m => hasPerm(m,"manage");
 const myReports = () => S.me? S.reports.filter(r=>r.ownerKey===S.me.key):[];
 const lastResetMs = () => S.resets.length? ms(S.resets[0].at) : 0;
 const myCycle = () => { const t=lastResetMs(); return myReports().filter(r=>r.createdAt>=t); };
+const isPart = (r,key) => r.ownerKey!==key && (r.participantIds||[]).includes(key);
+const myPartCycle = () => { const t=lastResetMs(); return S.me? S.reports.filter(r=>isPart(r,S.me.key)&&r.createdAt>=t):[]; };
 const PLEDGE_KEY="rasd_pledge_pending";
 function setPledgePending(uid){S.needPledge=!!uid;try{uid?sessionStorage.setItem(PLEDGE_KEY,uid):sessionStorage.removeItem(PLEDGE_KEY)}catch(e){}}
 function readPledgePending(uid){try{return sessionStorage.getItem(PLEDGE_KEY)===uid}catch(e){return false}}
@@ -533,7 +562,8 @@ const mapMember = r => ({key:r.id,codeKey:r.code_key,name:r.name,codeType:r.code
 const mapReport = r => ({id:r.id,num:r.num,type:r.type,shift:r.shift,area:r.area,leader:r.leader,leaderName:r.leader_name,details:r.details,
   cases:r.cases||[],participants:r.participants||[],images:r.images||[],imageCount:(r.images||[]).length,ownerKey:r.owner,ownerName:r.owner_name,
   ownerCode:r.owner_code,status:r.status,note:r.note||"",reviewer:r.reviewer,reviewedAt:ms(r.reviewed_at),createdAt:ms(r.created_at),
-  resubmits:r.resubmits||0,prevNote:r.prev_note||"",updatedAt:ms(r.updated_at)});
+  resubmits:r.resubmits||0,prevNote:r.prev_note||"",updatedAt:ms(r.updated_at),
+  participantIds:r.participant_ids||[],imageHashes:r.image_hashes||[],dupInfo:Array.isArray(r.dup_info)?r.dup_info:[]});
 const mapNotif = r => ({id:r.id,kind:r.kind,title:r.title,body:r.body||"",reportId:r.report_id,read:!!r.read_at,createdAt:ms(r.created_at)});
 const mapAudit = r => ({id:r.id,actor:r.actor_label||"—",action:r.action,target:r.target||"",details:r.details||"",createdAt:ms(r.created_at)});
 const mapViol = r => ({id:r.id,memberKey:r.member_id,memberName:r.member_name,memberCode:r.member_code,level:r.level,reason:r.reason,by:r.by_label,createdAt:ms(r.created_at)});
@@ -782,7 +812,7 @@ function repRow(r,showOwner){
   const t=rtype(r.type);
   return `<div class="rep" data-open="${r.id}">
     <div class="no">${r.num??"–"}</div>
-    <div class="meta"><b>${esc(t.name)}</b><small>${showOwner?esc(r.ownerName)+" · "+esc(r.ownerCode)+" · ":""}${esc(r.area)} · ${fmtDate(r.createdAt)}</small></div>
+    <div class="meta"><b>${esc(t.name)}${S.me&&isPart(r,S.me.key)?' <span class="part-tag">مشارك</span>':""}${r.dupInfo&&r.dupInfo.length&&(isReviewer(S.me)||canManage(S.me)||r.ownerKey===S.me.key)?' <span class="dup-badge">⚠ صورة مكررة</span>':""}</b><small>${showOwner?esc(r.ownerName)+" · "+esc(r.ownerCode)+" · ":""}${esc(r.area)} · ${fmtDate(r.createdAt)}</small></div>
     <span class="chip ${r.status}">${STATUS[r.status]}</span>
     ${r.status==="rejected"&&r.note?`<div class="note"><b>سبب الرفض:</b> ${esc(r.note)}${!showOwner&&r.ownerKey===S.me.key?' <span class="edit-hint">· اضغط لتعديله وإعادة رفعه</span>':""}</div>`:""}
     ${r.status==="pending"&&r.resubmits?`<div class="resub">أُعيد رفعه بعد الرفض${r.resubmits>1?` (${r.resubmits} مرات)`:""}${r.prevNote?` · سبب الرفض السابق: ${esc(r.prevNote)}`:""}</div>`:""}
@@ -807,6 +837,7 @@ function violRow(v,manage){
 /* ---------- home ---------- */
 function homeHTML(){
   const all=myReports(),list=myCycle(),old=all.filter(r=>!list.includes(r)),myV=S.violations.filter(v=>v.memberKey===S.me.key);
+  const part=myPartCycle();
   const rs=S.resets[0];
   return `<section class="view">
     <div id="hero-slot"></div>
@@ -814,18 +845,35 @@ function homeHTML(){
       <button class="btn btn-primary" data-go="new">+ رفع تقرير جديد</button></div>
     ${rs?`<div class="cycle-line">الإحصائيات والترقيم من آخر تصفير: <b>${fmtDate(ms(rs.at))}</b>${rs.note?` · ${esc(rs.note)}`:""}</div>`:""}
     ${statsHTML(list)}
+    ${tallyHTML(list,part)}
     ${lbHTML()}
     <div class="section-h"><h2>سجل تقاريري</h2></div>
     <div class="list">${list.length?list.map(r=>repRow(r,false)).join(""):
       `<div class="empty"><b>${rs?"لا توجد تقارير في الدورة الحالية":"لا توجد تقارير بعد"}</b>أول تقرير ترفعه سيظهر هنا مع حالته ورقمه.</div>`}</div>
+    ${part.length?`<div class="section-h"><div><h2>تقارير شاركت فيها</h2><p>أضافك زملاؤك كمشارك فيها، وتنحسب لك إذا انقبلت</p></div></div>
+    <div class="list">${part.map(r=>repRow(r,true)).join("")}</div>`:""}
     ${old.length?`<details class="card old-reports"><summary>التقارير السابقة قبل التصفير (${old.length})</summary><div class="list">${old.map(r=>repRow(r,false)).join("")}</div></details>`:""}
     ${myV.length?`<div class="section-h"><div><h2>سجل المخالفات</h2><p>${myV.length} مخالفة مسجّلة عليك · الالتزام بالتعميمات يجنّبك الإعفاء</p></div></div>
     <div class="list">${myV.map(v=>violRow(v,false)).join("")}</div>`:""}
   </section>`;
 }
 
+function tallyHTML(A,P){
+  const acc=l=>l.filter(r=>r.status==="accepted").length,rs=S.resets[0];
+  return `<section class="tally">
+    <div class="tally-h"><b>حصيلة تقاريري</b><small>${rs?"منذ آخر تصفير":"كل الفترات"} · التقارير المقبولة تنحسب لك في الجرد وفرد الشهر</small></div>
+    <div class="tally-grid">
+      <div class="tc"><span>تقارير كتبتها</span><b class="mono">${A.length}</b><small><i class="mono">${acc(A)}</i> مقبولة</small></div>
+      <div class="op" aria-hidden="true">+</div>
+      <div class="tc"><span>تقارير شاركت فيها</span><b class="mono">${P.length}</b><small><i class="mono">${acc(P)}</i> مقبولة</small></div>
+      <div class="op" aria-hidden="true">=</div>
+      <div class="tc sum"><span>المجموع</span><b class="mono">${A.length+P.length}</b><small><i class="mono">${acc(A)+acc(P)}</i> مقبولة</small></div>
+    </div>
+  </section>`;
+}
+
 /* ---------- new report ---------- */
-function newDraft(){return {type:"alcohol",shift:"الصباحية",area:"",leader:S.me.key,duration:"ساعة",participants:[S.me.key],extra:[],cases:[""],details:"",dirty:false,images:[],keep:[]}}
+function newDraft(){return {type:"alcohol",shift:"الصباحية",area:"",leader:S.me.key,duration:"ساعة",participants:[S.me.key],extra:[],cases:[""],details:"",dirty:false,images:[],hashes:[],keep:[],dups:{},dupAck:false}}
 const imgTotal=d=>d.images.length+(d.keep?d.keep.length:0);
 const editSnap=d=>JSON.stringify([d.type,d.shift,d.area.trim(),d.leader||null,d.details.trim(),rtype(d.type).cases?d.cases.map(c=>c.trim()).filter(Boolean):[],partNames(d),(d.keep||[]).map(k=>k.path),d.images.length]);
 function draftFromReport(r){
@@ -833,8 +881,9 @@ function draftFromReport(r){
   const parts=[],extra=[];(r.participants||[]).forEach(p=>{const k=labels[p.replace(/^@/,"")];k?parts.push(k):extra.push(p)});
   const d={editId:r.id,editNum:r.num,editNote:r.note,type:r.type,shift:r.shift||"الصباحية",area:r.area||"",leader:r.leader||S.me.key,duration:"ساعة",
     participants:parts,extra,cases:r.cases&&r.cases.length?[...r.cases]:[""],details:r.details,dirty:true,images:[],
-    keep:(r.images||[]).map(p=>({path:p,url:null})),origImages:[...(r.images||[])]};
+    keep:(r.images||[]).map((p,i)=>({path:p,url:null,hash:(r.imageHashes||[])[i]||""})),origImages:[...(r.images||[])],hashes:[],dups:{},dupAck:false};
   d.orig=editSnap(d);
+  checkDups(d);
   if(d.keep.length)S.sb.storage.from("report-images").createSignedUrls(d.keep.map(k=>k.path),3600).then(({data})=>{
     (data||[]).forEach((x,i)=>{if(d.keep[i])d.keep[i].url=x.signedUrl});if(S.draft===d&&S.view==="new")render()});
   return d;
@@ -886,7 +935,9 @@ function newHTML(){
         <label class="drop" id="drop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m21 17-5-5-8 8"/></svg>
           <b>اسحب الصور هنا أو اضغط للاختيار</b><small>حتى ٦ صور · تُضغط تلقائياً</small>
           <input type="file" id="n-files" accept="image/*" multiple hidden></label>
-        ${imgTotal(d)?`<div class="thumbs">${(d.keep||[]).map((k,i)=>`<div class="thumb">${k.url?`<img src="${k.url}" data-zoom="k${i}" alt="صورة ${i+1}">`:'<span class="loader" style="margin:auto;position:absolute;inset:0"></span>'}<button type="button" data-rmkeep="${i}" aria-label="حذف">✕</button></div>`).join("")}${d.images.map((src,i)=>`<div class="thumb"><img src="${src}" data-zoom="${i}" alt="صورة جديدة ${i+1}"><span class="new-tag">جديدة</span><button type="button" data-rmimg="${i}" aria-label="حذف">✕</button></div>`).join("")}</div>`:""}
+        ${imgTotal(d)?`<div class="thumbs">${(d.keep||[]).map((k,i)=>`<div class="thumb ${d.dups[i+1]?"dup":""}">${k.url?`<img src="${k.url}" data-zoom="k${i}" alt="صورة ${i+1}">`:'<span class="loader" style="margin:auto;position:absolute;inset:0"></span>'}${d.dups[i+1]?'<span class="dup-tag">مكررة</span>':""}<button type="button" data-rmkeep="${i}" aria-label="حذف">✕</button></div>`).join("")}${d.images.map((src,i)=>{const n=(d.keep||[]).length+i+1;return `<div class="thumb ${d.dups[n]?"dup":""}"><img src="${src}" data-zoom="${i}" alt="صورة جديدة ${i+1}">${d.dups[n]?'<span class="dup-tag">مكررة</span>':'<span class="new-tag">جديدة</span>'}<button type="button" data-rmimg="${i}" aria-label="حذف">✕</button></div>`}).join("")}</div>`:""}
+        ${Object.keys(d.dups).length?`<div class="dup-warn"><b>⚠ صور مستخدمة في تقارير سابقة</b>${Object.entries(d.dups).map(([n,x])=>`<span>الصورة ${n}: تقرير رقم ${esc(x.num)} لـ ${esc(x.owner_name)} · ${fmtDate(ms(x.created_at))}</span>`).join("")}<small>ارفع صور من الحالة نفسها. إذا رفعت التقرير بهالصور، بيشوف المسؤول تنبيه "صورة مكررة".</small></div>`:""}
+        <small class="stamp-note">كل صورة ينكتب عليها كودك وتاريخ الرفع تلقائياً.</small>
       </div>
     </div>
     <div class="sticky-col">
@@ -914,8 +965,8 @@ function bindNew(){
   document.querySelectorAll("[data-case]").forEach(i=>i.oninput=e=>{d.cases[+i.dataset.case]=e.target.value;soft()});
   document.querySelectorAll("[data-rmcase]").forEach(b=>b.onclick=()=>{d.cases.splice(+b.dataset.rmcase,1);if(!d.cases.length)d.cases=[""];render()});
   const ac=$("#n-addcase");if(ac)ac.onclick=()=>{d.cases.push("");render();$(`#case-${d.cases.length-1}`)?.focus()};
-  document.querySelectorAll("[data-rmimg]").forEach(b=>b.onclick=e=>{e.preventDefault();d.images.splice(+b.dataset.rmimg,1);render()});
-  document.querySelectorAll("[data-rmkeep]").forEach(b=>b.onclick=e=>{e.preventDefault();d.keep.splice(+b.dataset.rmkeep,1);render()});
+  document.querySelectorAll("[data-rmimg]").forEach(b=>b.onclick=e=>{e.preventDefault();d.images.splice(+b.dataset.rmimg,1);d.hashes.splice(+b.dataset.rmimg,1);d.dupAck=false;render();checkDups(d)});
+  document.querySelectorAll("[data-rmkeep]").forEach(b=>b.onclick=e=>{e.preventDefault();d.keep.splice(+b.dataset.rmkeep,1);d.dupAck=false;render();checkDups(d)});
   const nc=$("#n-cancel");if(nc)nc.onclick=()=>{S.draft=null;S.view="home";render()};
   document.querySelectorAll("[data-zoom]").forEach(i=>i.onclick=e=>{e.preventDefault();lightbox(i.src)});
   const drop=$("#drop"),fi=$("#n-files");
@@ -929,15 +980,51 @@ async function addFiles(files){
   if(!list.length)return;
   const room=6-imgTotal(d);if(room<=0){toast("الحد الأقصى ٦ صور");return}
   toast("جارِ تجهيز الصور…");
-  for(const f of list.slice(0,room)){try{d.images.push(await compress(f))}catch(e){toast("تعذّر قراءة إحدى الصور")}}
-  render();
+  for(const f of list.slice(0,room)){try{const x=await compress(f);d.images.push(x.url);d.hashes.push(x.hash)}catch(e){toast("تعذّر قراءة إحدى الصور")}}
+  d.dupAck=false;render();checkDups(d);
+}
+// بصمة الصورة (dHash 64 بت) من الصورة الأصلية قبل الختم
+function dhash(img){
+  const a=document.createElement("canvas");a.width=72;a.height=64;const ax=a.getContext("2d");ax.imageSmoothingQuality="high";ax.drawImage(img,0,0,72,64);
+  const b=document.createElement("canvas");b.width=9;b.height=8;const bx=b.getContext("2d");bx.imageSmoothingQuality="high";bx.drawImage(a,0,0,9,8);
+  const px=bx.getImageData(0,0,9,8).data,g=i=>px[i]*.299+px[i+1]*.587+px[i+2]*.114;let bits="";
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++){const i=(y*9+x)*4;bits+=g(i)>g(i+4)?"1":"0"}
+  let h="";for(let k=0;k<64;k+=4)h+=parseInt(bits.slice(k,k+4),2).toString(16);return h;
+}
+var STAMP_LOGO=null;
+function drawStamp(ctx,w,h){
+  if(!STAMP_LOGO){STAMP_LOGO=new Image();STAMP_LOGO.src=LOGO}
+  const s=Math.max(12,Math.round(Math.min(w,h)*0.03)),pad=Math.round(s*.6),fam='"IBM Plex Sans Arabic",Tahoma,sans-serif';
+  const l1="فرقة الرصد والمتابعة",l2=`${codeLabel(S.me.codeType,S.me.num)} · ${S.me.name}`,l3=new Date().toLocaleString("ar",{dateStyle:"short",timeStyle:"short"});
+  ctx.save();ctx.direction="rtl";ctx.textAlign="right";ctx.textBaseline="top";
+  ctx.font=`700 ${s}px ${fam}`;const w1=ctx.measureText(l1).width;
+  ctx.font=`500 ${Math.round(s*.82)}px ${fam}`;const w2=Math.max(ctx.measureText(l2).width,ctx.measureText(l3).width);
+  const th=s*1.3+s*.82*1.3*2,logo=STAMP_LOGO.complete&&STAMP_LOGO.naturalWidth?Math.round(th):0;
+  const bw=Math.max(w1,w2)+pad*2+(logo?logo+pad:0),bh=th+pad*2,x=w-bw-pad,y=h-bh-pad;
+  ctx.fillStyle="rgba(5,8,15,.62)";ctx.strokeStyle="rgba(197,204,214,.35)";ctx.lineWidth=Math.max(1,s*.06);
+  ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,bw,bh,s*.4);else ctx.rect(x,y,bw,bh);ctx.fill();ctx.stroke();
+  if(logo)ctx.drawImage(STAMP_LOGO,x+pad,y+pad,logo,logo);
+  const tx=x+bw-pad;ctx.fillStyle="#fff";ctx.font=`700 ${s}px ${fam}`;ctx.fillText(l1,tx,y+pad);
+  ctx.fillStyle="#c5ccd6";ctx.font=`500 ${Math.round(s*.82)}px ${fam}`;ctx.fillText(l2,tx,y+pad+s*1.3);ctx.fillText(l3,tx,y+pad+s*1.3+s*.82*1.3);
+  ctx.restore();
 }
 function compress(file){
   return new Promise((res,rej)=>{const r=new FileReader();r.onerror=rej;r.onload=()=>{const img=new Image();img.onerror=rej;img.onload=()=>{
-    let max=1600,q=.82,out;
+    const hash=dhash(img);let max=1600,q=.82,out;
     for(let i=0;i<8;i++){const s=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
-      c.getContext("2d").drawImage(img,0,0,c.width,c.height);out=c.toDataURL("image/jpeg",q);if(out.length<900000)break;max*=.85;q=Math.max(.55,q-.05)}
-    res(out)};img.src=r.result};r.readAsDataURL(file)});
+      const cx=c.getContext("2d");cx.drawImage(img,0,0,c.width,c.height);drawStamp(cx,c.width,c.height);out=c.toDataURL("image/jpeg",q);if(out.length<900000)break;max*=.85;q=Math.max(.55,q-.05)}
+    res({url:out,hash})};img.src=r.result};r.readAsDataURL(file)});
+}
+let dupSeq=0;
+async function checkDups(d){
+  const hashes=[...(d.keep||[]).map(k=>k.hash||""),...(d.hashes||[])];
+  if(!hashes.some(Boolean)){d.dups={};return}
+  const seq=++dupSeq;
+  const {data,error}=await S.sb.rpc("check_image_dups",{p_hashes:hashes,p_exclude:d.editId||null});
+  if(seq!==dupSeq||S.draft!==d||error)return;
+  const m={};(Array.isArray(data)?data:[]).forEach(x=>{if(!m[x.idx])m[x.idx]=x});
+  const changed=JSON.stringify(Object.keys(m))!==JSON.stringify(Object.keys(d.dups));d.dups=m;
+  if(changed&&S.view==="new")render();
 }
 function dataUrlToBlob(u){const [h,b]=u.split(",");const bin=atob(b);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:(h.match(/:(.*?);/)||[])[1]||"image/jpeg"})}
 async function submitReport(){
@@ -947,6 +1034,7 @@ async function submitReport(){
   if(t.cases&&!d.cases.some(c=>c.trim())){err.textContent="أضف حالة واحدة على الأقل.";return}
   if(imgTotal(d)<t.minImg){err.textContent=`هذا النوع يتطلب ${t.minImg} صورة على الأقل.`;return}
   if(d.editId&&editSnap(d)===d.orig){err.textContent="ما تغيّر شي في التقرير. عدّل ما طلبه المسؤول قبل إعادة الرفع.";return}
+  if(Object.keys(d.dups).length&&!d.dupAck){d.dupAck=true;err.textContent="فيه صور مستخدمة في تقارير سابقة. اضغط مرة ثانية للرفع، والمسؤول بيشوف تنبيه الصور المكررة.";btn.textContent="رفع رغم الصور المكررة";return}
   btn.disabled=true;btn.innerHTML='<span class="loader"></span> جارِ الرفع';
   if(d.editId)return resubmitReport(d,t,err,btn);
   const id=crypto.randomUUID(),paths=[];
@@ -958,7 +1046,8 @@ async function submitReport(){
       if(up.error)throw up.error;paths.push(path);
     }
     const {data,error}=await S.sb.from("reports").insert({id,type:d.type,shift:d.shift,area:d.area.trim(),leader:d.leader||null,
-      details:d.details.trim(),cases:t.cases?d.cases.map(c=>c.trim()).filter(Boolean):[],participants:partNames(d),images:paths}).select().single();
+      details:d.details.trim(),cases:t.cases?d.cases.map(c=>c.trim()).filter(Boolean):[],participants:partNames(d),images:paths,
+      participant_ids:d.participants.filter(k=>k!==S.me.key),image_hashes:d.hashes.slice(0,paths.length)}).select().single();
     if(error)throw error;
     S.reports=[mapReport(data),...S.reports.filter(r=>r.id!==data.id)];
     S.draft=null;S.view="home";render();toast(`تم رفع التقرير رقم ${data.num} بنجاح`);
@@ -978,7 +1067,8 @@ async function resubmitReport(d,t,err,btn){
     }
     const imgs=[...d.keep.map(k=>k.path),...paths];
     const {data,error}=await S.sb.from("reports").update({type:d.type,shift:d.shift,area:d.area.trim(),leader:d.leader||null,details:d.details.trim(),
-      cases:t.cases?d.cases.map(c=>c.trim()).filter(Boolean):[],participants:partNames(d),images:imgs}).eq("id",id).select().single();
+      cases:t.cases?d.cases.map(c=>c.trim()).filter(Boolean):[],participants:partNames(d),images:imgs,
+      participant_ids:d.participants.filter(k=>k!==S.me.key),image_hashes:[...d.keep.map(k=>k.hash||""),...d.hashes.slice(0,paths.length)]}).eq("id",id).select().single();
     if(error)throw error;
     const removed=(d.origImages||[]).filter(p=>!imgs.includes(p));
     if(removed.length)S.sb.storage.from("report-images").remove(removed);
@@ -1034,7 +1124,7 @@ function lbHTML(){
   const cur=S.lb.cur,prev=S.lb.prev,top=cur[0],mine=cur.findIndex(x=>x.key===S.me.key);
   const prevTop=prev[0];
   return `<section class="lb">
-    <div class="lb-head"><div><span class="eyebrow">فرد الشهر</span><h2>${monthName(0)}</h2></div><small>الترتيب حسب التقارير المقبولة هذا الشهر</small></div>
+    <div class="lb-head"><div><span class="eyebrow">فرد الشهر</span><h2>${monthName(0)}</h2></div><small>الترتيب حسب التقارير المقبولة هذا الشهر (كتابة ومشاركة)</small></div>
     ${top?`<div class="lb-body">
       <div class="champ ${top.key===S.me.key?"me":""}">
         <div class="crown">${CROWN}</div>
@@ -1182,21 +1272,23 @@ function invHTML(){
 function renderInv(){
   const v=S.inv,inP=t=>inRange(t,v.from,v.to)&&(!v.since||t>=v.since);
   const inR=S.reports.filter(r=>inP(r.createdAt)),inV=S.violations.filter(x=>inP(x.createdAt));
-  let rows=activeMembers().map(m=>{const l=inR.filter(r=>r.ownerKey===m.key);const a=l.filter(r=>r.status==="accepted").length,x=l.filter(r=>r.status==="rejected").length;
-    return {m,a,x,p:l.filter(r=>r.status==="pending").length,t:l.length,v:inV.filter(z=>z.memberKey===m.key).length,rate:a+x?a/(a+x):-1}});
-  if(S.invShow==="with")rows=rows.filter(r=>r.t>0);
-  else if(S.invShow==="without")rows=rows.filter(r=>r.t===0);
-  const k=S.invSort;rows.sort((A,B)=>k==="name"?A.m.name.localeCompare(B.m.name,"ar"):(B[k]-A[k])||(B.a-A.a)||(B.t-A.t));
+  let rows=activeMembers().map(m=>{const l=inR.filter(r=>r.ownerKey===m.key),pl=inR.filter(r=>isPart(r,m.key));
+    const a=l.filter(r=>r.status==="accepted").length,x=l.filter(r=>r.status==="rejected").length,pa=pl.filter(r=>r.status==="accepted").length;
+    return {m,a,x,pa,sa:a+pa,p:l.filter(r=>r.status==="pending").length,t:l.length,pt:pl.length,v:inV.filter(z=>z.memberKey===m.key).length,rate:a+x?a/(a+x):-1}});
+  if(S.invShow==="with")rows=rows.filter(r=>r.t+r.pt>0);
+  else if(S.invShow==="without")rows=rows.filter(r=>r.t+r.pt===0);
+  const k=S.invSort;rows.sort((A,B)=>k==="name"?A.m.name.localeCompare(B.m.name,"ar"):(B[k]-A[k])||(B.sa-A.sa)||(B.a-A.a));
   $("#inv-stats").innerHTML=statsHTML(inR);
   const label=v.since?`منذ آخر تصفير (${fmtDate(v.since)})`:v.from||v.to?`من ${v.from?new Date(dayMs(v.from)).toLocaleDateString("ar",{dateStyle:"long"}):"البداية"} إلى ${v.to?new Date(dayMs(v.to)).toLocaleDateString("ar",{dateStyle:"long"}):"اليوم"}`:"كل الفترات";
   $("#inv-line").textContent=`${label} · ${rows.length} فرد`;
   const th=(id,l)=>`<th class="sort ${k===id?"on":""}" data-sort="${id}">${l}${k===id?" ▾":""}</th>`;
   const sum=f=>rows.reduce((s,r)=>s+r[f],0);
-  $("#inv-table").innerHTML=`<table><thead><tr><th>#</th>${th("name","الفرد")}<th>الكود</th>${th("a","المقبولة")}${th("x","المرفوضة")}${th("p","بالانتظار")}${th("t","الإجمالي")}${th("rate","نسبة القبول")}${th("v","المخالفات")}</tr></thead>
+  $("#inv-table").innerHTML=`<table class="inv-t"><thead><tr><th>#</th>${th("name","الفرد")}<th>الكود</th>${th("a","كتبها<br><small>مقبولة</small>")}${th("pa","شارك فيها<br><small>مقبولة</small>")}${th("sa","المجموع<br><small>المقبول</small>")}${th("x","المرفوضة")}${th("p","بالانتظار")}${th("rate","نسبة القبول")}${th("v","المخالفات")}</tr></thead>
     <tbody>${rows.map((r,i)=>`<tr><td class="num" style="color:var(--steel-dim)">${i+1}</td><td>${esc(r.m.name)}${warnCount(r.m.key)>=3?' <span class="flag">· مستحق للإعفاء</span>':""}</td><td class="num" style="white-space:nowrap">${esc(codeLabel(r.m.codeType,r.m.num))}</td>
-      <td class="num" style="color:var(--ok)">${r.a}</td><td class="num" style="color:var(--bad)">${r.x}</td><td class="num" style="color:var(--warn)">${r.p}</td><td class="num">${r.t}</td>
-      <td class="rate">${r.rate<0?"—":Math.round(r.rate*100)+"%"}</td><td class="num" style="color:${r.v?"var(--bad)":"var(--steel-dim)"}">${r.v}</td></tr>`).join("")||`<tr><td colspan="9" style="text-align:center;color:var(--steel-dim);padding:28px">${S.invShow==="without"?"كل الأفراد عندهم تقارير في هذه الفترة":"لا يوجد أفراد بتقارير في هذه الفترة"}</td></tr>`}</tbody>
-    ${rows.length?`<tfoot><tr><td></td><td>المجموع</td><td></td><td class="num">${sum("a")}</td><td class="num">${sum("x")}</td><td class="num">${sum("p")}</td><td class="num">${sum("t")}</td><td></td><td class="num">${sum("v")}</td></tr></tfoot>`:""}</table>`;
+      <td class="num" style="color:var(--ok)">${r.a}</td><td class="num" style="color:#9db6ec">${r.pa}</td><td class="num sa">${r.sa}</td><td class="num" style="color:var(--bad)">${r.x}</td><td class="num" style="color:var(--warn)">${r.p}</td>
+      <td class="rate">${r.rate<0?"—":Math.round(r.rate*100)+"%"}</td><td class="num" style="color:${r.v?"var(--bad)":"var(--steel-dim)"}">${r.v}</td></tr>`).join("")||`<tr><td colspan="10" style="text-align:center;color:var(--steel-dim);padding:28px">${S.invShow==="without"?"كل الأفراد عندهم تقارير في هذه الفترة":"لا يوجد أفراد بتقارير في هذه الفترة"}</td></tr>`}</tbody>
+    ${rows.length?`<tfoot><tr><td></td><td>المجموع</td><td></td><td class="num">${sum("a")}</td><td class="num">${sum("pa")}</td><td class="num sa">${sum("sa")}</td><td class="num">${sum("x")}</td><td class="num">${sum("p")}</td><td></td><td class="num">${sum("v")}</td></tr></tfoot>`:""}</table>
+    <p class="inv-note">"شارك فيها" = تقارير زملائه المقبولة اللي أضافوه فيها كمشارك. "المجموع المقبول" = اللي كتبها + اللي شارك فيها.</p>`;
   document.querySelectorAll("#inv-table [data-sort]").forEach(h=>h.onclick=()=>{S.invSort=h.dataset.sort;renderInv()});
 }
 function bindInv(){
@@ -1666,8 +1758,10 @@ async function openReport(id){
       <span class="chip ${r.status}">${STATUS[r.status]}</span></div>
     <div class="kv"><div><small>منطقة المباشرة</small><b>${esc(r.area)}</b></div><div><small>الفترة</small><b>${esc(r.shift||"—")}</b></div><div><small>قائد المباشرة</small><b>${esc(r.leaderName||"—")}</b></div><div><small>عدد الصور</small><b class="mono">${r.imageCount}</b></div></div>
     <div class="field"><span>تفاصيل الحالة</span><div class="paper" style="max-height:none">${esc(r.details)}${r.cases?.length?"\n\nالحالات:\n"+r.cases.map((c,i)=>`${i+1} - ${esc(c)}`).join("\n"):""}</div></div>
-    <div class="field"><span>الأشخاص المشاركون</span><div class="pills">${(r.participants||[]).map(p=>`<span class="pill">${esc(p.replace(/^@/,""))}</span>`).join("")||"—"}</div></div>
-    <div class="field"><span>صور الحالات الميدانية</span><div class="thumbs" id="m-imgs">${r.images.map(()=>`<div class="thumb"><span class="loader" style="margin:auto;position:absolute;inset:0"></span></div>`).join("")||'<small style="color:var(--steel-dim)">لا توجد صور</small>'}</div></div>
+    <div class="field"><span>الأشخاص المشاركون</span><div class="pills">${(r.participants||[]).map(p=>`<span class="pill">${esc(p.replace(/^@/,""))}</span>`).join("")||"—"}</div>
+      ${(r.participantIds||[]).length?`<small class="credit">ينحسب التقرير عند قبوله لـ: ${[r.ownerName,...r.participantIds.map(k=>(S.members[k]||{}).name).filter(Boolean)].map(esc).join("، ")}</small>`:""}</div>
+    ${r.dupInfo&&r.dupInfo.length&&(rev||canManage(S.me)||own)?`<div class="dup-warn"><b>⚠ صور مكررة في هذا التقرير</b>${r.dupInfo.map(x=>`<span>الصورة ${esc(x.idx)}: مستخدمة في تقرير رقم ${esc(x.num)} لـ ${esc(x.owner_name)} | ${esc(x.owner_code)} · ${fmtDate(ms(x.created_at))}</span>`).join("")}<small>تأكد إن الصور من الحالة نفسها قبل القبول.</small></div>`:""}
+    <div class="field"><span>صور الحالات الميدانية</span><div class="thumbs" id="m-imgs">${r.images.map((_,i)=>`<div class="thumb ${(r.dupInfo||[]).some(x=>+x.idx===i+1)?"dup":""}"><span class="loader" style="margin:auto;position:absolute;inset:0"></span></div>`).join("")||'<small style="color:var(--steel-dim)">لا توجد صور</small>'}</div></div>
     ${r.status!=="pending"?`<div class="kv"><div><small>المراجع</small><b>${esc(r.reviewer||"—")}</b></div><div><small>وقت المراجعة</small><b>${fmtDate(r.reviewedAt)}</b></div></div>`:""}
     ${r.status==="rejected"&&r.note?`<div class="note-banner"><b>سبب الرفض:</b> ${esc(r.note)}</div>`:""}
     ${r.resubmits?`<div class="resub" style="margin:0">أُعيد رفع هذا التقرير بعد الرفض${r.resubmits>1?` ${r.resubmits} مرات`:""}${r.updatedAt?` · آخر تعديل ${fmtDate(r.updatedAt)}`:""}${r.prevNote&&r.status!=="rejected"?`<br>سبب الرفض السابق: ${esc(r.prevNote)}`:""}</div>`:""}
