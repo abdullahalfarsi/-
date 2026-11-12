@@ -9,9 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<style>html,body{margin:0;height:auto}
-img{max-width:100%}
-[hidden]{display:none!important}
+<style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 
 /* Layout: a command-console shell — badge-crowned header, stat strip, then the working panel (form / list / review queue). Single dark look taken from the unit's gunmetal-and-navy badge. */
 :root{
@@ -25,7 +23,7 @@ img{max-width:100%}
   --steel:#c5ccd6;        /* badge pewter */
   --steel-dim:#8792a5;
   --fg:#e8ecf2;
-  --ok:#3fb97a; --warn:#e2a93b; --bad:#e2574c;
+  --ok:#3fb97a; --warn:#e2a93b; --bad:#e2574c; --gold:#d9b25f;
   --f-display:"Reem Kufi","IBM Plex Sans Arabic",Tahoma,sans-serif;
   --f-body:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -241,6 +239,89 @@ tr:last-child td{border-bottom:0}
 .issue-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
 @media (max-width:860px){.issue-grid{grid-template-columns:1fr}}
 
+/* ---------- v3: notifications ---------- */
+.bell-wrap{position:relative}
+.bell{position:relative;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--steel);display:grid;place-items:center;cursor:pointer;transition:border-color .2s}
+.bell:hover{border-color:var(--steel-dim)}
+.bell svg{width:19px;height:19px}
+.bell.has svg{animation:ring 2.8s ease-in-out infinite;transform-origin:50% 10%}
+@keyframes ring{0%,88%,100%{transform:none}90%{transform:rotate(14deg)}93%{transform:rotate(-12deg)}96%{transform:rotate(6deg)}}
+.bell-n{position:absolute;top:-6px;left:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font-size:11px;line-height:19px;text-align:center;box-shadow:0 0 0 2px var(--ink)}
+.bell-panel{position:absolute;top:calc(100% + 10px);left:0;width:min(380px,calc(100vw - 32px));max-height:min(520px,70vh);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.55);z-index:40;animation:pop .22s cubic-bezier(.2,.9,.3,1.2);overflow:hidden}
+@media (max-width:560px){.bell-panel{position:fixed;top:64px;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto}}
+.bell-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.linkbtn{border:0;background:none;color:var(--navy-hi);font:inherit;font-size:12.5px;cursor:pointer;padding:0}
+.linkbtn:hover{text-decoration:underline}
+.bell-list{overflow:auto;display:grid}
+.nt{display:grid;grid-template-columns:32px 1fr;gap:10px;text-align:right;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;font:inherit;padding:12px 14px;cursor:pointer;transition:background .15s}
+.nt:last-child{border-bottom:0}
+.nt:hover{background:var(--panel-2)}
+.nt.unread{background:rgba(52,99,201,.1)}
+.nt.unread .nt-tx b::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--navy-hi);margin-inline-start:7px;vertical-align:middle}
+.nt-ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-weight:700;font-size:14px}
+.nt-ic.ok{background:rgba(63,185,122,.15);color:var(--ok)}
+.nt-ic.bad{background:rgba(226,87,76,.15);color:var(--bad)}
+.nt-ic.warn{background:rgba(226,169,59,.15);color:var(--warn)}
+.nt-ic.navy{background:rgba(52,99,201,.18);color:#9db6ec}
+.nt-tx{display:grid;gap:2px;min-width:0}
+.nt-tx b{font-size:13.5px}
+.nt-tx small{color:var(--steel);font-size:12.5px;line-height:1.6;overflow-wrap:anywhere}
+.nt-tx i{font-style:normal;color:var(--steel-dim);font-size:11.5px}
+
+/* ---------- v3: resubmit ---------- */
+.edit-hint{color:#f7cfca;font-weight:600}
+.resub{grid-column:1/-1;background:rgba(52,99,201,.1);border:1px solid rgba(52,99,201,.35);color:#b8c9ee;border-radius:8px;padding:8px 12px;font-size:13px}
+.note-banner{background:rgba(226,87,76,.1);border:1px solid rgba(226,87,76,.35);color:#f3b2ab;border-radius:10px;padding:10px 14px;font-size:14px}
+.new-tag{position:absolute;bottom:5px;right:5px;background:var(--navy-hi);color:#fff;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 6px}
+
+/* ---------- v3: member of the month ---------- */
+.lb{position:relative;border-radius:16px;padding:18px;display:grid;gap:14px;overflow:hidden;
+  background:linear-gradient(135deg,rgba(217,178,95,.10),transparent 45%),linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid rgba(217,178,95,.28)}
+.lb::before{content:"";position:absolute;inset:0;background:radial-gradient(420px 160px at 85% 0%,rgba(217,178,95,.14),transparent 70%);pointer-events:none}
+.lb>*{position:relative}
+.lb-head{display:flex;justify-content:space-between;align-items:end;gap:10px;flex-wrap:wrap}
+.lb-head h2{font-size:22px}
+.lb-head small{color:var(--steel-dim);font-size:12.5px}
+.eyebrow{display:block;color:var(--gold);font-size:12px;font-weight:700;letter-spacing:.5px}
+.lb-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:stretch}
+@media (max-width:720px){.lb-body{grid-template-columns:1fr}}
+.champ{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:rgba(7,12,23,.45);border:1px solid rgba(217,178,95,.35);border-radius:12px;padding:16px;min-width:0}
+.champ.me{box-shadow:0 0 0 2px rgba(217,178,95,.45) inset}
+.crown{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;color:var(--gold);background:radial-gradient(circle at 50% 35%,rgba(217,178,95,.28),rgba(217,178,95,.06));border:1px solid rgba(217,178,95,.45);animation:glow 3s ease-in-out infinite}
+.crown svg{width:26px;height:26px}
+@keyframes glow{50%{box-shadow:0 0 22px rgba(217,178,95,.35)}}
+.champ-tx{display:grid;min-width:0}
+.champ-tx small{color:var(--gold);font-size:12px;font-weight:600}
+.champ-tx b{font-family:var(--f-display);font-size:21px;line-height:1.3;overflow-wrap:anywhere}
+.champ-tx span{color:var(--steel-dim);font-size:12.5px}
+.champ-n{text-align:center;display:grid}
+.champ-n b{font-size:32px;line-height:1;color:var(--gold)}
+.champ-n small{color:var(--steel-dim);font-size:11.5px;margin-top:4px}
+.ranks{list-style:none;margin:0;padding:0;display:grid;gap:6px;align-content:start}
+.ranks li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;background:rgba(7,12,23,.35);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
+.ranks li.me{border-color:var(--navy-hi);background:rgba(52,99,201,.12)}
+.ranks li.muted{display:block;color:var(--steel-dim);font-size:13px}
+.rk{color:var(--steel-dim);text-align:center}
+.rn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rn i{font-style:normal;color:var(--steel-dim);font-size:12px}
+.ranks b{color:var(--steel)}
+.lb-empty{color:var(--steel);font-size:14px;padding:6px 0}
+.lb-foot{display:flex;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;font-size:13px;color:var(--steel);border-top:1px solid rgba(217,178,95,.18);padding-top:12px}
+.lb-foot .prev{color:var(--steel-dim)}
+.lb-foot .prev b{color:var(--gold)}
+
+/* ---------- v3: audit log ---------- */
+.audit{display:grid;gap:6px}
+.au-day{font-family:var(--f-display);color:var(--steel);font-size:14px;padding:12px 2px 4px}
+.au{display:grid;grid-template-columns:62px 1fr;gap:12px;background:var(--panel);border:1px solid var(--line);border-inline-start:3px solid var(--c,var(--line));border-radius:10px;padding:10px 14px;animation:rise .3s ease both}
+.au.rep{--c:var(--navy-hi)}.au.acc{--c:var(--steel-dim)}.au.perm{--c:var(--gold)}.au.viol{--c:var(--bad)}
+.au-t{color:var(--steel-dim);font-size:12.5px;padding-top:2px}
+.au-b{min-width:0;display:grid;gap:3px;font-size:14px}
+.au-b b{overflow-wrap:anywhere}
+.au-k{display:inline-block;font-size:12px;font-weight:700;border-radius:6px;padding:1px 8px;background:var(--panel-2);color:var(--c,var(--steel));margin-inline-end:4px}
+.au-b p{margin:0;color:var(--steel);font-size:13px;overflow-wrap:anywhere}
+.au-b small{color:var(--steel-dim);font-size:12px}
+
 details summary{font-weight:600}
 </style>
 </head>
@@ -301,6 +382,7 @@ const S = {
   view:"home", gateTab:"login", filter:"pending",
   rf:{q:"",type:"",from:"",to:""}, inv:null, invSort:"a", invHideEmpty:false, vf:"", vlvl:"warn",
   draft:null, channel:null, invites:[], issued:null, iperms:{review:false,manage:false},
+  notifs:[], notifMax:null, bellOpen:false, audit:[], af:{cat:"",q:"",from:"",to:""}, lb:{cur:[],prev:[]},
 };
 const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -320,7 +402,10 @@ const mapMember = r => ({key:r.id,codeKey:r.code_key,name:r.name,codeType:r.code
   permBy:r.perm_by,permAt:ms(r.perm_at),approvedBy:r.approved_by,createdAt:ms(r.created_at)});
 const mapReport = r => ({id:r.id,num:r.num,type:r.type,shift:r.shift,area:r.area,leader:r.leader,leaderName:r.leader_name,details:r.details,
   cases:r.cases||[],participants:r.participants||[],images:r.images||[],imageCount:(r.images||[]).length,ownerKey:r.owner,ownerName:r.owner_name,
-  ownerCode:r.owner_code,status:r.status,note:r.note||"",reviewer:r.reviewer,reviewedAt:ms(r.reviewed_at),createdAt:ms(r.created_at)});
+  ownerCode:r.owner_code,status:r.status,note:r.note||"",reviewer:r.reviewer,reviewedAt:ms(r.reviewed_at),createdAt:ms(r.created_at),
+  resubmits:r.resubmits||0,prevNote:r.prev_note||"",updatedAt:ms(r.updated_at)});
+const mapNotif = r => ({id:r.id,kind:r.kind,title:r.title,body:r.body||"",reportId:r.report_id,read:!!r.read_at,createdAt:ms(r.created_at)});
+const mapAudit = r => ({id:r.id,actor:r.actor_label||"—",action:r.action,target:r.target||"",details:r.details||"",createdAt:ms(r.created_at)});
 const mapViol = r => ({id:r.id,memberKey:r.member_id,memberName:r.member_name,memberCode:r.member_code,level:r.level,reason:r.reason,by:r.by_label,createdAt:ms(r.created_at)});
 
 /* ---------- data ---------- */
@@ -332,21 +417,42 @@ async function fetchInvites(){
   const {data,error}=await S.sb.from("invites").select("code_key,name,perms,attempts,created_by,created_at,used_at").is("used_at",null).order("created_at",{ascending:false});
   if(!error)S.invites=data.map(r=>({codeKey:r.code_key,name:r.name,perms:r.perms||{},attempts:r.attempts,by:r.created_by,createdAt:ms(r.created_at)}));
 }
+async function fetchNotifs(){
+  const {data,error}=await S.sb.from("notifications").select("*").order("created_at",{ascending:false}).limit(60);
+  if(error)return;
+  const list=data.map(mapNotif),max=list.reduce((a,n)=>Math.max(a,+n.id||0),0);
+  if(S.notifMax!=null){const fresh=list.filter(n=>!n.read&&(+n.id)>S.notifMax);if(fresh.length)toast(fresh[0].title)}
+  S.notifMax=Math.max(S.notifMax||0,max);S.notifs=list;
+}
+async function fetchAudit(){
+  if(!canManage(S.me)){S.audit=[];return}
+  const {data,error}=await S.sb.from("audit_log").select("*").order("created_at",{ascending:false}).limit(800);
+  if(!error)S.audit=data.map(mapAudit);
+}
+function monthRange(offset){const n=new Date();const a=new Date(n.getFullYear(),n.getMonth()+offset,1),b=new Date(n.getFullYear(),n.getMonth()+offset+1,1);return [a,b]}
+async function fetchLb(){
+  const get=async off=>{const [a,b]=monthRange(off);const {data,error}=await S.sb.rpc("leaderboard",{p_from:a.toISOString(),p_to:b.toISOString()});
+    return error||!Array.isArray(data)?[]:data.map(r=>({key:r.member_id,name:r.name,code:r.code,accepted:r.accepted,total:r.total}))};
+  const [cur,prev]=await Promise.all([get(0),get(-1)]);S.lb={cur,prev};
+}
 const debounced={};
 function refetch(name,fn){clearTimeout(debounced[name]);debounced[name]=setTimeout(async()=>{try{await fn();render()}catch(e){}},250)}
 async function loadAll(){
-  try{await fetchMembers();await Promise.all([fetchReports(),fetchViol(),fetchInvites()]);S.loadErr=""}
+  try{await fetchMembers();await Promise.all([fetchReports(),fetchViol(),fetchInvites(),fetchNotifs(),fetchAudit(),fetchLb()]);S.loadErr=""}
   catch(e){S.loadErr="تعذّر تحميل البيانات: "+(e.message||"خطأ غير معروف")}
   S.ready=true;render();
   if(!S.channel){
     S.channel=S.sb.channel("rasd-live")
       .on("postgres_changes",{event:"*",schema:"public",table:"members"},()=>refetch("m",async()=>{await fetchMembers();await fetchInvites()}))
-      .on("postgres_changes",{event:"*",schema:"public",table:"reports"},()=>refetch("r",fetchReports))
+      .on("postgres_changes",{event:"*",schema:"public",table:"reports"},()=>refetch("r",async()=>{await fetchReports();await fetchLb()}))
+      .on("postgres_changes",{event:"*",schema:"public",table:"notifications"},()=>refetch("n",fetchNotifs))
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"audit_log"},()=>refetch("a",fetchAudit))
       .on("postgres_changes",{event:"*",schema:"public",table:"violations"},()=>refetch("v",fetchViol))
       .subscribe();
   }
 }
 function clearData(){S.members={};S.reports=[];S.violations=[];S.me=null;S.uid=null;S.draft=null;S.view="home";
+  S.notifs=[];S.notifMax=null;S.bellOpen=false;S.audit=[];S.lb={cur:[],prev:[]};S.invites=[];S.issued=null;
   if(S.channel){S.sb.removeChannel(S.channel);S.channel=null}}
 
 /* ---------- boot ---------- */
@@ -463,24 +569,27 @@ function shellHTML(){
   const tabs=[["home","تقاريري"],["new","تقرير جديد"]];
   if(rev)tabs.push(["review","مراجعة التقارير"]);
   if(rev||mng)tabs.push(["inventory","الجرد"]);
-  if(mng)tabs.push(["violations","المخالفات"],["members","الأفراد والأكواد"]);
+  if(mng)tabs.push(["violations","المخالفات"],["members","الأفراد والأكواد"],["audit","السجل"]);
   const badge=id=>id==="review"&&pend?pend:id==="members"&&joinReq?joinReq:0;
   return `<header class="top"><div class="wrap">
       <div class="brand"><img src="${LOGO}" alt=""><div><b>فرقة الرصد والمتابعة</b><small>الدوريات الأمنية</small></div></div>
       <div class="who"><span class="tag">${esc(S.me.name)} · <span class="mono">${esc(codeLabel(S.me.codeType,S.me.num))}</span></span>
+      ${bellHTML()}
       <button class="btn btn-ghost btn-sm" id="logout">خروج</button></div>
     </div>
     <div class="wrap"><nav class="nav">${tabs.map(([id,l])=>`<button data-v="${id}" class="${S.view===id?"on":""}">${l}${badge(id)?`<span class="count mono">${badge(id)}</span>`:""}</button>`).join("")}</nav></div>
   </header>
   <main class="wrap">${S.loadErr?`<div class="banner">${esc(S.loadErr)}</div>`:""}${
     S.view==="new"?newHTML(): S.view==="review"&&rev?reviewHTML(): S.view==="members"&&mng?membersHTML():
-    S.view==="inventory"&&(rev||mng)?invHTML(): S.view==="violations"&&mng?violHTML(): homeHTML()}</main>`;
+    S.view==="inventory"&&(rev||mng)?invHTML(): S.view==="violations"&&mng?violHTML(): S.view==="audit"&&mng?auditHTML(): homeHTML()}</main>`;
 }
 function bindShell(){
   $("#logout").onclick=()=>S.sb.auth.signOut();
-  document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{S.view=b.dataset.v;render();window.scrollTo({top:0,behavior:"smooth"})});
+  document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{if(b.dataset.v==="new"&&S.draft&&S.draft.editId)S.draft=null;S.view=b.dataset.v;render();window.scrollTo({top:0,behavior:"smooth"});
+    if(S.view==="audit")fetchAudit().then(()=>{if(S.view==="audit")renderAudit()});
+    if(S.view==="home")Promise.all([fetchLb(),fetchNotifs()]).then(()=>{if(S.view==="home")render()})});
   document.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openReport(el.dataset.open));
-  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{S.view=b.dataset.go;render()});
+  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go==="new"&&S.draft&&S.draft.editId)S.draft=null;S.view=b.dataset.go;render()});
   document.querySelectorAll("[data-perm]").forEach(b=>b.onclick=()=>openPerms(b.dataset.perm));
   document.querySelectorAll("[data-approve]").forEach(b=>b.onclick=()=>setMemberStatus(b.dataset.approve,"active",b));
   document.querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>setMemberStatus(b.dataset.reject,"suspended",b));
@@ -489,6 +598,8 @@ function bindShell(){
   if(S.view==="inventory")bindInv();
   if(S.view==="violations")bindViol();
   if(S.view==="members"&&canManage(S.me))bindMembers();
+  if(S.view==="audit"&&canManage(S.me))bindAudit();
+  bindBell();
 }
 
 function statsHTML(list){
@@ -505,7 +616,8 @@ function repRow(r,showOwner){
     <div class="no">${r.num??"–"}</div>
     <div class="meta"><b>${esc(t.name)}</b><small>${showOwner?esc(r.ownerName)+" · "+esc(r.ownerCode)+" · ":""}${esc(r.area)} · ${fmtDate(r.createdAt)}</small></div>
     <span class="chip ${r.status}">${STATUS[r.status]}</span>
-    ${r.status==="rejected"&&r.note?`<div class="note"><b>سبب الرفض:</b> ${esc(r.note)}</div>`:""}
+    ${r.status==="rejected"&&r.note?`<div class="note"><b>سبب الرفض:</b> ${esc(r.note)}${!showOwner&&r.ownerKey===S.me.key?' <span class="edit-hint">· اضغط لتعديله وإعادة رفعه</span>':""}</div>`:""}
+    ${r.status==="pending"&&r.resubmits?`<div class="resub">أُعيد رفعه بعد الرفض${r.resubmits>1?` (${r.resubmits} مرات)`:""}${r.prevNote?` · سبب الرفض السابق: ${esc(r.prevNote)}`:""}</div>`:""}
   </div>`;
 }
 
@@ -531,6 +643,7 @@ function homeHTML(){
     <div class="section-h"><div><h2>أهلاً ${esc(S.me.name)}</h2><p>${esc(fullCode(S.me))}</p></div>
       <button class="btn btn-primary" data-go="new">+ رفع تقرير جديد</button></div>
     ${statsHTML(list)}
+    ${lbHTML()}
     <div class="section-h"><h2>سجل تقاريري</h2></div>
     <div class="list">${list.length?list.map(r=>repRow(r,false)).join(""):
       `<div class="empty"><b>لا توجد تقارير بعد</b>أول تقرير ترفعه سيظهر هنا مع حالته ورقمه.</div>`}</div>
@@ -540,23 +653,39 @@ function homeHTML(){
 }
 
 /* ---------- new report ---------- */
-function newDraft(){return {type:"alcohol",shift:"الصباحية",area:"",leader:S.me.key,duration:"ساعة",participants:[S.me.key],extra:[],cases:[""],details:"",dirty:false,images:[]}}
+function newDraft(){return {type:"alcohol",shift:"الصباحية",area:"",leader:S.me.key,duration:"ساعة",participants:[S.me.key],extra:[],cases:[""],details:"",dirty:false,images:[],keep:[]}}
+const imgTotal=d=>d.images.length+(d.keep?d.keep.length:0);
+const editSnap=d=>JSON.stringify([d.type,d.shift,d.area.trim(),d.leader||null,d.details.trim(),rtype(d.type).cases?d.cases.map(c=>c.trim()).filter(Boolean):[],partNames(d),(d.keep||[]).map(k=>k.path),d.images.length]);
+function draftFromReport(r){
+  const labels={};activeMembers().forEach(m=>labels[`${m.name} | ${codeLabel(m.codeType,m.num)}`]=m.key);
+  const parts=[],extra=[];(r.participants||[]).forEach(p=>{const k=labels[p.replace(/^@/,"")];k?parts.push(k):extra.push(p)});
+  const d={editId:r.id,editNum:r.num,editNote:r.note,type:r.type,shift:r.shift||"الصباحية",area:r.area||"",leader:r.leader||S.me.key,duration:"ساعة",
+    participants:parts,extra,cases:r.cases&&r.cases.length?[...r.cases]:[""],details:r.details,dirty:true,images:[],
+    keep:(r.images||[]).map(p=>({path:p,url:null})),origImages:[...(r.images||[])]};
+  d.orig=editSnap(d);
+  if(d.keep.length)S.sb.storage.from("report-images").createSignedUrls(d.keep.map(k=>k.path),3600).then(({data})=>{
+    (data||[]).forEach((x,i)=>{if(d.keep[i])d.keep[i].url=x.signedUrl});if(S.draft===d&&S.view==="new")render()});
+  return d;
+}
 function ctxOf(d){const L=S.members[d.leader];return {shift:d.shift,area:d.area,duration:d.duration,leader:L?`${L.name} | ${codeLabel(L.codeType,L.num)}`:"—"}}
 function autoDetails(d){if(!d.dirty)d.details=rtype(d.type).tpl(ctxOf(d))}
 function partNames(d){return [...d.participants.map(k=>S.members[k]).filter(Boolean).map(m=>`${m.name} | ${codeLabel(m.codeType,m.num)}`),...d.extra]}
 function previewText(d){
   const t=rtype(d.type);
-  let s=`بسم الله الرحمن الرحيم\n\nنموذج المباشرة الميدانية – الرصد والمتابعة\n\nرقم التقرير : ${myReports().length+1}\n\nنوع التقرير : ${t.name}\n\nمنطقة المباشرة : ${d.area||"—"}\n\nتفاصيل الحالة : ${d.details}`;
+  let s=`بسم الله الرحمن الرحيم\n\nنموذج المباشرة الميدانية – الرصد والمتابعة\n\nرقم التقرير : ${d.editId?d.editNum:myReports().length+1}\n\nنوع التقرير : ${t.name}\n\nمنطقة المباشرة : ${d.area||"—"}\n\nتفاصيل الحالة : ${d.details}`;
   const cs=t.cases?d.cases.filter(c=>c.trim()):[];
   if(cs.length)s+=`\n\nالحالات :\n${cs.map((c,i)=>`${i+1} - ${c}`).join("\n")}`;
-  s+=`\n\nالأشخاص المشاركون : ${partNames(d).map(x=>"@"+x).join(" ")}\n\nمعد التقرير : @${S.me.name} | ${codeLabel(S.me.codeType,S.me.num)}\n\nصور الحالات الميدانية (${d.images.length})`;
+  s+=`\n\nالأشخاص المشاركون : ${partNames(d).map(x=>"@"+x).join(" ")}\n\nمعد التقرير : @${S.me.name} | ${codeLabel(S.me.codeType,S.me.num)}\n\nصور الحالات الميدانية (${imgTotal(d)})`;
   return esc(s).replace(/^(بسم الله الرحمن الرحيم|نموذج المباشرة.*)$/gm,'<span class="hd">$1</span>');
 }
 function newHTML(){
   if(!S.draft){S.draft=newDraft();autoDetails(S.draft)}
   const d=S.draft,t=rtype(d.type),mem=activeMembers();
   return `<section class="view">
-  <div class="section-h"><div><h2>تقرير جديد</h2><p>نموذج المباشرة الميدانية – الرصد والمتابعة · سيُرفع برقم <span class="mono">${myReports().length+1}</span></p></div></div>
+  ${d.editId?`<div class="section-h"><div><h2>تعديل التقرير رقم <span class="mono">${d.editNum}</span></h2><p>عدّل ما طلبه المسؤول ثم أعد رفعه. يحتفظ التقرير برقمه ويرجع لقائمة المراجعة.</p></div>
+    <button class="btn btn-ghost btn-sm" id="n-cancel">إلغاء التعديل</button></div>
+    ${d.editNote?`<div class="note-banner"><b>سبب الرفض:</b> ${esc(d.editNote)}</div>`:""}`
+  :`<div class="section-h"><div><h2>تقرير جديد</h2><p>نموذج المباشرة الميدانية – الرصد والمتابعة · سيُرفع برقم <span class="mono">${myReports().length+1}</span></p></div></div>`}
   <div class="composer">
     <div style="display:grid;gap:16px;min-width:0">
       <div class="card"><h3><span class="step">1</span>نوع التقرير</h3>
@@ -585,13 +714,13 @@ function newHTML(){
         <label class="drop" id="drop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m21 17-5-5-8 8"/></svg>
           <b>اسحب الصور هنا أو اضغط للاختيار</b><small>حتى ٦ صور · تُضغط تلقائياً</small>
           <input type="file" id="n-files" accept="image/*" multiple hidden></label>
-        ${d.images.length?`<div class="thumbs">${d.images.map((src,i)=>`<div class="thumb"><img src="${src}" data-zoom="${i}" alt="صورة ${i+1}"><button type="button" data-rmimg="${i}" aria-label="حذف">✕</button></div>`).join("")}</div>`:""}
+        ${imgTotal(d)?`<div class="thumbs">${(d.keep||[]).map((k,i)=>`<div class="thumb">${k.url?`<img src="${k.url}" data-zoom="k${i}" alt="صورة ${i+1}">`:'<span class="loader" style="margin:auto;position:absolute;inset:0"></span>'}<button type="button" data-rmkeep="${i}" aria-label="حذف">✕</button></div>`).join("")}${d.images.map((src,i)=>`<div class="thumb"><img src="${src}" data-zoom="${i}" alt="صورة جديدة ${i+1}"><span class="new-tag">جديدة</span><button type="button" data-rmimg="${i}" aria-label="حذف">✕</button></div>`).join("")}</div>`:""}
       </div>
     </div>
     <div class="sticky-col">
       <div class="paper" id="paper">${previewText(d)}</div>
       <div class="err" id="n-err"></div>
-      <button class="btn btn-primary" id="n-submit">رفع التقرير للمسؤول</button>
+      <button class="btn btn-primary" id="n-submit">${d.editId?"إعادة رفع التقرير":"رفع التقرير للمسؤول"}</button>
     </div>
   </div></section>`;
 }
@@ -614,6 +743,8 @@ function bindNew(){
   document.querySelectorAll("[data-rmcase]").forEach(b=>b.onclick=()=>{d.cases.splice(+b.dataset.rmcase,1);if(!d.cases.length)d.cases=[""];render()});
   const ac=$("#n-addcase");if(ac)ac.onclick=()=>{d.cases.push("");render();$(`#case-${d.cases.length-1}`)?.focus()};
   document.querySelectorAll("[data-rmimg]").forEach(b=>b.onclick=e=>{e.preventDefault();d.images.splice(+b.dataset.rmimg,1);render()});
+  document.querySelectorAll("[data-rmkeep]").forEach(b=>b.onclick=e=>{e.preventDefault();d.keep.splice(+b.dataset.rmkeep,1);render()});
+  const nc=$("#n-cancel");if(nc)nc.onclick=()=>{S.draft=null;S.view="home";render()};
   document.querySelectorAll("[data-zoom]").forEach(i=>i.onclick=e=>{e.preventDefault();lightbox(i.src)});
   const drop=$("#drop"),fi=$("#n-files");
   fi.onchange=()=>addFiles(fi.files);
@@ -624,7 +755,7 @@ function bindNew(){
 async function addFiles(files){
   const d=S.draft;const list=[...files].filter(f=>f.type.startsWith("image/"));
   if(!list.length)return;
-  const room=6-d.images.length;if(room<=0){toast("الحد الأقصى ٦ صور");return}
+  const room=6-imgTotal(d);if(room<=0){toast("الحد الأقصى ٦ صور");return}
   toast("جارِ تجهيز الصور…");
   for(const f of list.slice(0,room)){try{d.images.push(await compress(f))}catch(e){toast("تعذّر قراءة إحدى الصور")}}
   render();
@@ -636,17 +767,20 @@ function compress(file){
       c.getContext("2d").drawImage(img,0,0,c.width,c.height);out=c.toDataURL("image/jpeg",q);if(out.length<900000)break;max*=.85;q=Math.max(.55,q-.05)}
     res(out)};img.src=r.result};r.readAsDataURL(file)});
 }
+function dataUrlToBlob(u){const [h,b]=u.split(",");const bin=atob(b);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:(h.match(/:(.*?);/)||[])[1]||"image/jpeg"})}
 async function submitReport(){
   const d=S.draft,t=rtype(d.type),err=$("#n-err"),btn=$("#n-submit");err.textContent="";
   if(!d.area.trim()){err.textContent="أدخل منطقة المباشرة.";$("#n-area").focus();return}
   if(d.details.trim().length<15){err.textContent="اكتب تفاصيل الحالة بشكل أوضح.";return}
   if(t.cases&&!d.cases.some(c=>c.trim())){err.textContent="أضف حالة واحدة على الأقل.";return}
-  if(d.images.length<t.minImg){err.textContent=`هذا النوع يتطلب ${t.minImg} صورة على الأقل.`;return}
+  if(imgTotal(d)<t.minImg){err.textContent=`هذا النوع يتطلب ${t.minImg} صورة على الأقل.`;return}
+  if(d.editId&&editSnap(d)===d.orig){err.textContent="ما تغيّر شي في التقرير. عدّل ما طلبه المسؤول قبل إعادة الرفع.";return}
   btn.disabled=true;btn.innerHTML='<span class="loader"></span> جارِ الرفع';
+  if(d.editId)return resubmitReport(d,t,err,btn);
   const id=crypto.randomUUID(),paths=[];
   try{
     for(let i=0;i<d.images.length;i++){
-      const blob=await (await fetch(d.images[i])).blob();
+      const blob=dataUrlToBlob(d.images[i]);
       const path=`${S.uid}/${id}/${i+1}.jpg`;
       const up=await S.sb.storage.from("report-images").upload(path,blob,{contentType:"image/jpeg",upsert:false});
       if(up.error)throw up.error;paths.push(path);
@@ -660,6 +794,135 @@ async function submitReport(){
     if(paths.length)S.sb.storage.from("report-images").remove(paths);
     btn.disabled=false;btn.textContent="رفع التقرير للمسؤول";err.textContent="تعذّر رفع التقرير: "+(e.message||"حاول مرة أخرى.");
   }
+}
+
+async function resubmitReport(d,t,err,btn){
+  const id=d.editId,stamp=Date.now(),paths=[];
+  try{
+    for(let i=0;i<d.images.length;i++){
+      const path=`${S.uid}/${id}/e${stamp}-${i+1}.jpg`;
+      const up=await S.sb.storage.from("report-images").upload(path,dataUrlToBlob(d.images[i]),{contentType:"image/jpeg",upsert:false});
+      if(up.error)throw up.error;paths.push(path);
+    }
+    const imgs=[...d.keep.map(k=>k.path),...paths];
+    const {data,error}=await S.sb.from("reports").update({type:d.type,shift:d.shift,area:d.area.trim(),leader:d.leader||null,details:d.details.trim(),
+      cases:t.cases?d.cases.map(c=>c.trim()).filter(Boolean):[],participants:partNames(d),images:imgs}).eq("id",id).select().single();
+    if(error)throw error;
+    const removed=(d.origImages||[]).filter(p=>!imgs.includes(p));
+    if(removed.length)S.sb.storage.from("report-images").remove(removed);
+    S.reports=S.reports.map(r=>r.id===id?mapReport(data):r);
+    S.draft=null;S.view="home";render();toast(`تمت إعادة رفع التقرير رقم ${data.num}`);
+  }catch(e){
+    if(paths.length)S.sb.storage.from("report-images").remove(paths);
+    btn.disabled=false;btn.textContent="إعادة رفع التقرير";
+    err.textContent=/not_allowed/.test(e.message||"")?"لا يمكن تعديل هذا التقرير. قد يكون تمت مراجعته من جديد.":"تعذّر إعادة الرفع: "+(e.message||"حاول مرة أخرى.");
+  }
+}
+
+/* ---------- notifications ---------- */
+const NOTIF_ICON={accepted:["✓","ok"],rejected:["✕","bad"],violation:["!","warn"],perms:["★","navy"],welcome:["◆","navy"],activate:["◆","navy"]};
+function bellHTML(){
+  const unread=S.notifs.filter(n=>!n.read).length;
+  return `<div class="bell-wrap"><button class="bell ${unread?"has":""}" id="bell" aria-label="الإشعارات${unread?` (${unread} جديدة)`:""}" aria-expanded="${S.bellOpen}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    ${unread?`<span class="bell-n mono">${unread>9?"9+":unread}</span>`:""}</button>
+    ${S.bellOpen?`<div class="bell-panel" role="dialog" aria-label="الإشعارات">
+      <div class="bell-h"><b>الإشعارات</b>${unread?`<button class="linkbtn" id="n-allread">تحديد الكل كمقروء</button>`:""}</div>
+      <div class="bell-list">${S.notifs.length?S.notifs.map(n=>{const [ic,c]=NOTIF_ICON[n.kind]||["•","navy"];
+        return `<button class="nt ${n.read?"":"unread"}" data-nt="${n.id}"><span class="nt-ic ${c}">${ic}</span><span class="nt-tx"><b>${esc(n.title)}</b>${n.body?`<small>${esc(n.body)}</small>`:""}<i>${fmtDate(n.createdAt)}</i></span></button>`}).join("")
+      :`<div class="empty" style="border:0;padding:28px 12px"><b>لا توجد إشعارات</b>ستصلك هنا نتيجة مراجعة تقاريرك وأي قرار يخصك.</div>`}</div>
+    </div>`:""}</div>`;
+}
+async function markRead(ids){
+  if(!ids.length)return;
+  S.notifs.forEach(n=>{if(ids.includes(n.id))n.read=true});
+  await S.sb.from("notifications").update({read_at:new Date().toISOString()}).in("id",ids);
+}
+function bindBell(){
+  const b=$("#bell");if(!b)return;
+  b.onclick=e=>{e.stopPropagation();S.bellOpen=!S.bellOpen;render()};
+  const ar=$("#n-allread");if(ar)ar.onclick=async e=>{e.stopPropagation();await markRead(S.notifs.filter(n=>!n.read).map(n=>n.id));render()};
+  document.querySelectorAll("[data-nt]").forEach(el=>el.onclick=async e=>{
+    e.stopPropagation();const n=S.notifs.find(x=>String(x.id)===el.dataset.nt);if(!n)return;
+    S.bellOpen=false;if(!n.read)markRead([n.id]);
+    if(n.reportId&&S.reports.some(r=>r.id===n.reportId)){S.view="home";render();openReport(n.reportId)}
+    else{S.view="home";render()}
+  });
+  const panel=document.querySelector(".bell-panel");if(panel)panel.onclick=e=>e.stopPropagation();
+}
+document.addEventListener("click",()=>{if(S.bellOpen){S.bellOpen=false;render()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&S.bellOpen){S.bellOpen=false;render()}});
+
+/* ---------- member of the month ---------- */
+const monthName=off=>monthRange(off)[0].toLocaleDateString("ar",{month:"long"});
+const CROWN='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5L3 7z"/><rect x="5" y="19.2" width="14" height="1.8" rx=".9"/></svg>';
+function lbHTML(){
+  const cur=S.lb.cur,prev=S.lb.prev,top=cur[0],mine=cur.findIndex(x=>x.key===S.me.key);
+  const prevTop=prev[0];
+  return `<section class="lb">
+    <div class="lb-head"><div><span class="eyebrow">فرد الشهر</span><h2>${monthName(0)}</h2></div><small>الترتيب حسب التقارير المقبولة هذا الشهر</small></div>
+    ${top?`<div class="lb-body">
+      <div class="champ ${top.key===S.me.key?"me":""}">
+        <div class="crown">${CROWN}</div>
+        <div class="champ-tx"><small>المتصدر</small><b>${esc(top.name)}</b><span class="mono">${esc(top.code)}</span></div>
+        <div class="champ-n"><b class="mono">${top.accepted}</b><small>تقرير مقبول</small></div>
+      </div>
+      <ol class="ranks">${cur.slice(1,5).map((x,i)=>`<li class="${x.key===S.me.key?"me":""}"><span class="rk mono">${i+2}</span><span class="rn">${esc(x.name)} <i class="mono">${esc(x.code)}</i></span><b class="mono">${x.accepted}</b></li>`).join("")||'<li class="muted">ما فيه منافسين بعد. أول من يُقبل له تقرير يدخل القائمة.</li>'}</ol>
+    </div>`:`<div class="lb-empty">ما فيه تقارير مقبولة هذا الشهر بعد. أول تقرير يُقبل يحدد المتصدر.</div>`}
+    <div class="lb-foot">
+      <span>${mine===0?"أنت متصدر هذا الشهر. حافظ على مركزك.":mine>0?`ترتيبك: <b class="mono">#${mine+1}</b> · <b class="mono">${cur[mine].accepted}</b> تقرير مقبول${top?` · يفصلك عن المركز الأول <b class="mono">${top.accepted-cur[mine].accepted+1}</b>`:""}`:"ما عندك تقارير مقبولة هذا الشهر بعد. كل تقرير مقبول يدخلك الترتيب."}</span>
+      ${prevTop?`<span class="prev">بطل ${monthName(-1)}: <b>${esc(prevTop.name)}</b> (${prevTop.accepted})</span>`:""}
+    </div>
+  </section>`;
+}
+
+/* ---------- audit log ---------- */
+const AUDIT={
+  report_accept:["قبول تقرير","rep"],report_reject:["رفض تقرير","rep"],report_resubmit:["إعادة رفع تقرير","rep"],report_delete:["حذف تقرير","rep"],report_note:["تعديل ملاحظة","rep"],
+  code_issue:["إصدار كود","acc"],code_activate:["تفعيل حساب","acc"],code_cancel:["إلغاء كود","acc"],code_locked:["قفل مفتاح","acc"],
+  pin_reset:["مفتاح رقم سري جديد","acc"],pin_changed:["تغيير الرقم السري","acc"],pin_admin:["تغيير رقم سري من اللوحة","acc"],
+  member_suspend:["إيقاف حساب","acc"],member_activate:["إعادة تفعيل حساب","acc"],
+  perms_change:["تغيير صلاحيات","perm"],violation_add:["تسجيل مخالفة","viol"],violation_delete:["حذف مخالفة","viol"],
+};
+const AUDIT_CATS=[["","الكل"],["rep","التقارير"],["acc","الأكواد والحسابات"],["perm","الصلاحيات"],["viol","المخالفات"]];
+function auditHTML(){
+  const f=S.af;
+  return `<section class="view">
+    <div class="section-h"><div><h2>سجل العمليات</h2><p>كل قرار في الموقع ينحفظ هنا تلقائياً: مين سوّاه ومتى. ما يقدر أحد يعدّله أو يحذفه</p></div></div>
+    <div class="card" style="gap:12px">
+      <div class="toolbar">
+        <label class="field grow"><span>بحث</span><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="af-q" value="${esc(f.q)}" placeholder="اسم، كود، تفاصيل…"></div></label>
+        <label class="field"><span>من تاريخ</span><input type="date" id="af-from" value="${f.from}"></label>
+        <label class="field"><span>إلى تاريخ</span><input type="date" id="af-to" value="${f.to}"></label>
+        <div></div>
+      </div>
+      <div class="filters" id="af-cats">${AUDIT_CATS.map(([k,l])=>`<button class="pill ${f.cat===k?"on":""}" data-acat="${k}">${l}</button>`).join("")}</div>
+    </div>
+    <div class="result-line" id="af-line"></div>
+    <div class="audit" id="af-list"></div>
+  </section>`;
+}
+function renderAudit(){
+  const f=S.af,q=f.q.trim().toLowerCase();
+  const list=S.audit.filter(a=>{const m=AUDIT[a.action]||[a.action,"acc"];
+    return (!f.cat||m[1]===f.cat)&&inRange(a.createdAt,f.from,f.to)&&(!q||[a.actor,a.target,a.details,m[0]].join(" ").toLowerCase().includes(q))});
+  $("#af-line").textContent=`${list.length} عملية${S.audit.length>=800?" · يعرض آخر ٨٠٠ عملية":""}`;
+  let day="",html="";
+  list.slice(0,400).forEach(a=>{
+    const d=new Date(a.createdAt).toLocaleDateString("ar",{weekday:"long",day:"numeric",month:"long"});
+    if(d!==day){day=d;html+=`<div class="au-day">${d}</div>`}
+    const [label,cat]=AUDIT[a.action]||[a.action,"acc"];
+    html+=`<div class="au ${cat}"><span class="au-t mono">${new Date(a.createdAt).toLocaleTimeString("ar",{hour:"2-digit",minute:"2-digit"})}</span>
+      <div class="au-b"><div><span class="au-k">${label}</span> <b>${esc(a.target)}</b></div>${a.details?`<p>${esc(a.details)}</p>`:""}<small>بواسطة ${esc(a.actor)}</small></div></div>`;
+  });
+  $("#af-list").innerHTML=html||`<div class="empty"><b>لا توجد عمليات</b>${q||f.cat||f.from||f.to?"جرّب تغيير البحث أو الفلتر.":"أول قرار في الموقع بيظهر هنا."}</div>`;
+}
+function bindAudit(){
+  let t;$("#af-q").oninput=e=>{S.af.q=e.target.value;clearTimeout(t);t=setTimeout(renderAudit,150)};
+  $("#af-from").onchange=e=>{S.af.from=e.target.value;renderAudit()};
+  $("#af-to").onchange=e=>{S.af.to=e.target.value;renderAudit()};
+  document.querySelectorAll("[data-acat]").forEach(b=>b.onclick=()=>{S.af.cat=b.dataset.acat;document.querySelectorAll("[data-acat]").forEach(x=>x.classList.toggle("on",x===b));renderAudit()});
+  renderAudit();
 }
 
 /* ---------- review ---------- */
@@ -916,7 +1179,10 @@ function openPerms(key){
     <div style="display:flex;gap:10px"><button class="btn btn-primary" id="p-save">حفظ الصلاحيات</button><button class="btn btn-ghost" id="p-close">إلغاء</button></div>
   </div>`;
   document.body.appendChild(m);
-  const close=()=>m.remove();m.onclick=e=>{if(e.target===m)close()};$("#p-close",m).onclick=close;
+  const onKey=e=>{if(e.key==="Escape")close()};
+  const close=()=>{m.remove();document.removeEventListener("keydown",onKey)};
+  document.addEventListener("keydown",onKey);
+  m.onclick=e=>{if(e.target===m)close()};$("#p-close",m).onclick=close;
   $("#p-save",m).onclick=async()=>{
     const perms={};PERMS.forEach(p=>perms[p.id]=$("#perm-"+p.id,m).checked);
     const btn=$("#p-save",m);btn.disabled=true;
@@ -940,11 +1206,12 @@ async function openReport(id){
     <div class="field"><span>الأشخاص المشاركون</span><div class="pills">${(r.participants||[]).map(p=>`<span class="pill">${esc(p.replace(/^@/,""))}</span>`).join("")||"—"}</div></div>
     <div class="field"><span>صور الحالات الميدانية</span><div class="thumbs" id="m-imgs">${r.images.map(()=>`<div class="thumb"><span class="loader" style="margin:auto;position:absolute;inset:0"></span></div>`).join("")||'<small style="color:var(--steel-dim)">لا توجد صور</small>'}</div></div>
     ${r.status!=="pending"?`<div class="kv"><div><small>المراجع</small><b>${esc(r.reviewer||"—")}</b></div><div><small>وقت المراجعة</small><b>${fmtDate(r.reviewedAt)}</b></div></div>`:""}
-    ${r.status==="rejected"&&r.note?`<div class="rep" style="cursor:default"><div class="note" style="grid-column:1/-1"><b>سبب الرفض:</b> ${esc(r.note)}</div></div>`:""}
+    ${r.status==="rejected"&&r.note?`<div class="note-banner"><b>سبب الرفض:</b> ${esc(r.note)}</div>`:""}
+    ${r.resubmits?`<div class="resub" style="margin:0">أُعيد رفع هذا التقرير بعد الرفض${r.resubmits>1?` ${r.resubmits} مرات`:""}${r.updatedAt?` · آخر تعديل ${fmtDate(r.updatedAt)}`:""}${r.prevNote&&r.status!=="rejected"?`<br>سبب الرفض السابق: ${esc(r.prevNote)}`:""}</div>`:""}
     ${rev?`<div class="decide"><label class="field"><span>ملاحظة المسؤول ${r.status!=="accepted"?"(مطلوبة عند الرفض)":""}</span><textarea id="m-note" style="min-height:80px" placeholder="مثال: الصور غير واضحة، أعد الرفع">${esc(r.note||"")}</textarea></label>
       <div class="err" id="m-err"></div>
-      <div class="row"><button class="btn btn-ok" id="m-acc">قبول التقرير</button><button class="btn btn-bad" id="m-rej">رفض التقرير</button><span style="flex:1"></span>${own&&r.status==="pending"?'<button class="btn btn-ghost" id="m-del">حذف</button>':""}<button class="btn btn-ghost" id="m-close">إغلاق</button></div></div>`
-    :`<div class="row" style="display:flex;gap:10px;flex-wrap:wrap">${own&&r.status==="pending"?'<button class="btn btn-bad btn-sm" id="m-del">حذف التقرير</button>':""}<span style="flex:1"></span><button class="btn btn-ghost" id="m-close">إغلاق</button></div>`}
+      <div class="row"><button class="btn btn-ok" id="m-acc">قبول التقرير</button><button class="btn btn-bad" id="m-rej">رفض التقرير</button><span style="flex:1"></span>${own&&r.status==="rejected"?'<button class="btn btn-primary" id="m-edit">تعديل وإعادة الرفع</button>':""}${own&&r.status==="pending"?'<button class="btn btn-ghost" id="m-del">حذف</button>':""}<button class="btn btn-ghost" id="m-close">إغلاق</button></div></div>`
+    :`<div class="row" style="display:flex;gap:10px;flex-wrap:wrap">${own&&r.status==="rejected"?'<button class="btn btn-primary" id="m-edit">تعديل وإعادة الرفع</button>':""}${own&&r.status==="pending"?'<button class="btn btn-bad btn-sm" id="m-del">حذف التقرير</button>':""}<span style="flex:1"></span><button class="btn btn-ghost" id="m-close">إغلاق</button></div>`}
   </div>`;
   document.body.appendChild(m);document.body.style.overflow="hidden";
   const onKey=e=>{if(e.key==="Escape")close()};
@@ -960,6 +1227,7 @@ async function openReport(id){
     S.reports=S.reports.map(x=>x.id===data.id?mapReport(data):x);render();close();toast(st==="accepted"?"تم قبول التقرير":"تم رفض التقرير");
   };
   if(rev){$("#m-acc",m).onclick=()=>decide("accepted");$("#m-rej",m).onclick=()=>decide("rejected")}
+  const ed=$("#m-edit",m);if(ed)ed.onclick=()=>{close();S.draft=draftFromReport(r);S.view="new";render();window.scrollTo({top:0,behavior:"smooth"})};
   const del=$("#m-del",m);if(del)del.onclick=async()=>{
     if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="اضغط مرة ثانية للتأكيد";return}
     del.disabled=true;
