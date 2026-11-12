@@ -463,7 +463,7 @@ function clearData(){S.members={};S.reports=[];S.violations=[];S.me=null;S.uid=n
   const {data:{session}}=await S.sb.auth.getSession();
   if(session){S.uid=session.user.id;await loadAll()}else{S.ready=true;render()}
   S.sb.auth.onAuthStateChange((ev,session)=>{
-    if(ev==="SIGNED_OUT"){clearData();render()}
+    if(ev==="SIGNED_OUT"&&S.uid&&!loggingOut){clearData();S.ready=true;render()}
   });
 })();
 
@@ -560,7 +560,20 @@ function waitHTML(){
     <button class="btn btn-ghost" id="logout">تسجيل الخروج</button>
   </div></div>`;
 }
-function bindWait(){$("#logout").onclick=()=>S.sb.auth.signOut()}
+function bindWait(){$("#logout").onclick=e=>doLogout(e.currentTarget)}
+let loggingOut=false;
+async function doLogout(btn){
+  if(loggingOut)return;loggingOut=true;
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="loader"></span>'}
+  // نطلب من الخادم إنهاء الجلسة، لكن لا ننتظره أكثر من ثانيتين
+  let ok=false;
+  try{const r=await Promise.race([S.sb.auth.signOut({scope:"local"}),new Promise(res=>setTimeout(()=>res({timeout:true}),2000))]);ok=!!r&&!r.timeout&&!r.error}catch(e){}
+  // نمسح الجلسة من الجهاز في كل الأحوال
+  try{Object.keys(localStorage).filter(k=>/^sb-.+-auth-token/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  clearData();S.ready=true;S.gateTab="login";loggingOut=false;
+  if(ok){render();toast("تم تسجيل الخروج")}
+  else location.reload();   // الجلسة علقت عند الخادم: إعادة تحميل نظيفة تضمن الخروج
+}
 
 function shellHTML(){
   const rev=isReviewer(S.me),mng=canManage(S.me);
@@ -584,7 +597,7 @@ function shellHTML(){
     S.view==="inventory"&&(rev||mng)?invHTML(): S.view==="violations"&&mng?violHTML(): S.view==="audit"&&mng?auditHTML(): homeHTML()}</main>`;
 }
 function bindShell(){
-  $("#logout").onclick=()=>S.sb.auth.signOut();
+  $("#logout").onclick=e=>{e.stopPropagation();doLogout(e.currentTarget)};
   document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{if(b.dataset.v==="new"&&S.draft&&S.draft.editId)S.draft=null;S.view=b.dataset.v;render();window.scrollTo({top:0,behavior:"smooth"});
     if(S.view==="audit")fetchAudit().then(()=>{if(S.view==="audit")renderAudit()});
     if(S.view==="home")Promise.all([fetchLb(),fetchNotifs()]).then(()=>{if(S.view==="home")render()})});
