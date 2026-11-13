@@ -756,7 +756,7 @@ function gateHTML(){
     <div class="emblem"><img src="${LOGO}" alt="شعار فرقة الرصد والمتابعة"></div>
     <h1>فرقة الرصد والمتابعة</h1>
     <div class="sub">بوابة رفع التقارير الميدانية · الدوريات الأمنية</div>
-    ${S.maint.on?`<div class="banner warn">وضع الصيانة شغّال. الدخول الحين لأصحاب صلاحية إدارة الأفراد فقط. <button type="button" class="maint-link" id="maint-back">رجوع</button></div>`:""}
+    ${S.maint.on?`<button type="button" class="maint-link" id="maint-back">رجوع</button>`:""}
     ${S.loadErr?`<div class="banner">${esc(S.loadErr)}</div>`:""}
     <div class="seg"><button data-tab="login" class="${act?"":"on"}">تسجيل الدخول</button><button data-tab="activate" class="${act?"on":""}">تفعيل الكود</button></div>
     <form class="form" id="gateForm" autocomplete="off">
@@ -857,7 +857,7 @@ function shellHTML(){
     </div>
     <div class="wrap"><nav class="nav">${tabs.map(([id,l])=>`<button data-v="${id}" class="${S.view===id?"on":""}">${l}${badge(id)?`<span class="count mono">${badge(id)}</span>`:""}</button>`).join("")}</nav></div>
   </header>
-  <main class="wrap">${S.maint.on?`<div class="maint-bar"><b>وضع الصيانة شغّال</b> · الأفراد يشوفون صفحة الصيانة ومحد يقدر يدخل غير أصحاب صلاحية إدارة الأفراد. توقفه من Supabase: <span class="mono">select admin_maintenance(false);</span></div>`:""}${S.loadErr?`<div class="banner">${esc(S.loadErr)}</div>`:""}${
+  <main class="wrap">${S.loadErr?`<div class="banner">${esc(S.loadErr)}</div>`:""}${
     S.view==="new"?newHTML(): S.view==="review"&&rev?reviewHTML(): S.view==="members"&&mng?membersHTML():
     S.view==="inventory"&&(rev||mng)?invHTML(): S.view==="violations"&&mng?violHTML(): S.view==="audit"&&mng?auditHTML(): S.view==="concept"?conceptHTML(): S.view==="suggest"?suggHTML(): S.view==="rstats"&&hasPerm(S.me,"stats")?rstHTML(): homeHTML()}</main>`;
 }
