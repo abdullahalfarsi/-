@@ -560,8 +560,10 @@ const STATUS = {pending:"بانتظار المراجعة",accepted:"مقبول",
 const PERMS = [
   {id:"review", name:"مراجعة التقارير", hint:"قبول ورفض تقارير الأفراد وكتابة الملاحظات"},
   {id:"manage", name:"إدارة الأفراد والصلاحيات", hint:"إصدار الأكواد، المخالفات، إيقاف الحسابات، ومنح الصلاحيات أو سحبها"},
-  {id:"stats", name:"إحصائيات المسؤولين", hint:"عرض عدد التقارير اللي قبلها ورفضها كل مسؤول وسرعة مراجعته"},
+  {id:"stats", name:"إحصائيات المسؤولين", hint:"عرض عدد التقارير اللي قبلها ورفضها كل مسؤول"},
+  {id:"maint", name:"دخول وقت الصيانة", hint:"يقدر يدخل الموقع ويستخدمه وهو في وضع الصيانة", rasdOnly:true},
 ];
+const isRasd=m=>!!m&&m.codeType==="rasd";
 const LEVELS={note:{name:"ملاحظة",c:"var(--steel-dim)"},warn:{name:"إنذار",c:"var(--warn)"},final:{name:"إنذار نهائي",c:"var(--bad)"},fire:{name:"إعفاء من الفرقة",c:"var(--bad)"}};
 
 /* ---------- state ---------- */
@@ -572,7 +574,7 @@ const S = {
   rf:{q:"",type:"",from:"",to:""}, inv:null, invSort:"sa", invShow:"all", vf:"", vlvl:"warn",
   concept:null, v4:true, resets:[], needPledge:false, conceptEdit:false,
   suggs:[], sf:"new", v5:true,
-  draft:null, channel:null, invites:[], issued:null, iperms:{review:false,manage:false,stats:false},
+  draft:null, channel:null, invites:[], issued:null, iperms:{review:false,manage:false,stats:false,maint:false},
   rst:null, rstData:null, rstOpen:null, rstDet:{},
   maint:{on:false,msg:"",det:"",bypass:false}, maintLogin:false,
   notifs:[], notifMax:null, bellOpen:false, audit:[], af:{cat:"",q:"",from:"",to:""}, lb:{cur:[],prev:[]},
@@ -1808,7 +1810,7 @@ function membersHTML(){
         <div class="preview-code" id="i-prev">اختر الكود وأدخل الرقم</div>
         <label class="field"><span>اسم الفرد</span><input id="i-name" maxlength="40" placeholder="مثال: علي العسيري"></label>
         <div class="field" id="i-permbox"><span>الصلاحيات من البداية</span>
-          ${PERMS.map(p=>`<label class="toggle"><div><b>${p.name}</b><small>${p.hint}</small></div><span class="sw"><input type="checkbox" id="ip-${p.id}" ${S.iperms[p.id]?"checked":""}><i></i></span></label>`).join("")}</div>
+          ${PERMS.filter(p=>!p.rasdOnly||isRasd(S.me)).map(p=>`<label class="toggle"><div><b>${p.name}</b><small>${p.hint}</small></div><span class="sw"><input type="checkbox" id="ip-${p.id}" ${S.iperms[p.id]?"checked":""}><i></i></span></label>`).join("")}</div>
         <div class="err" id="i-err"></div>
         <button class="btn btn-primary" id="i-go" style="justify-self:start">إصدار الكود</button>
       </form>
@@ -1846,7 +1848,7 @@ function bindMembers(){
     $("#i-prev").innerHTML=!n?"اختر الكود وأدخل الرقم":m?`<span style="color:var(--warn)">الكود ${esc(codeLabel(t,n))} مستخدم من ${esc(m.name)}. الإصدار سيعطيه مفتاحاً جديداً لتغيير رقمه السري.</span>`:esc(`${codeLabel(t,n)} | ${ctype(t).title} | فرقة الرصد والمتابعة`);
     $("#i-name").disabled=!!m;$("#i-permbox").style.opacity=m?.4:1;if(m)$("#i-name").value=m.name};
   $("#i-type").onchange=upd;$("#i-num").oninput=upd;
-  PERMS.forEach(p=>{const c=$("#ip-"+p.id);c.onchange=()=>S.iperms[p.id]=c.checked});
+  PERMS.forEach(p=>{const c=$("#ip-"+p.id);if(c)c.onchange=()=>S.iperms[p.id]=c.checked});
   $("#iform").onsubmit=async e=>{
     e.preventDefault();const err=$("#i-err");err.textContent="";
     const t=$("#i-type").value,n=$("#i-num").value.trim(),name=$("#i-name").value.trim(),key=`${t}-${n}`;
@@ -1890,7 +1892,7 @@ function openPerms(key){
   const m=document.createElement("div");m.className="modal";
   m.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" style="max-width:480px">
     <div><h2 style="font-size:20px">صلاحيات ${esc(m0.name)}</h2><small style="color:var(--steel-dim)">${esc(fullCode(m0))}</small></div>
-    ${PERMS.map(p=>{const lock=self&&p.id==="manage";return `<label class="toggle"><div><b>${p.name}</b><small>${lock?"لا يمكنك سحب هذه الصلاحية من نفسك":p.hint}</small></div>
+    ${PERMS.filter(p=>!p.rasdOnly||isRasd(S.me)).map(p=>{const lock=self&&p.id==="manage";return `<label class="toggle"><div><b>${p.name}</b><small>${lock?"لا يمكنك سحب هذه الصلاحية من نفسك":p.hint}</small></div>
       <span class="sw"><input type="checkbox" id="perm-${p.id}" ${hasPerm(m0,p.id)?"checked":""} ${lock?"disabled":""}><i></i></span></label>`}).join("")}
     ${m0.permBy?`<small style="color:var(--steel-dim)">آخر تعديل: ${esc(m0.permBy)} · ${fmtDate(m0.permAt)}</small>`:""}
     <div class="err" id="p-err"></div>
@@ -1902,7 +1904,7 @@ function openPerms(key){
   document.addEventListener("keydown",onKey);
   m.onclick=e=>{if(e.target===m)close()};$("#p-close",m).onclick=close;
   $("#p-save",m).onclick=async()=>{
-    const perms={};PERMS.forEach(p=>perms[p.id]=$("#perm-"+p.id,m).checked);
+    const perms={...(m0.perms||{})};PERMS.forEach(p=>{const c=$("#perm-"+p.id,m);if(c)perms[p.id]=c.checked});
     const btn=$("#p-save",m);btn.disabled=true;
     const {error}=await S.sb.from("members").update({perms}).eq("id",key);
     if(error){btn.disabled=false;$("#p-err",m).textContent="تعذّر الحفظ: "+error.message;return}
