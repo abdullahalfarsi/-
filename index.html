@@ -522,6 +522,8 @@ tr:last-child td{border-bottom:0}
 .claim-box.other b{color:#fff}
 @media (prefers-reduced-motion:reduce){.claim-badge i,.claim-box i{animation:none}}
 .decide .btn:disabled{opacity:.35;cursor:not-allowed;filter:grayscale(.4);box-shadow:none;transform:none}
+.rep.locked{opacity:.6;cursor:not-allowed}
+.rep.locked:hover{transform:none;border-color:var(--line)}
 
 details summary{font-weight:600}
 </style>
@@ -918,7 +920,7 @@ function statsHTML(list){
 }
 function repRow(r,showOwner){
   const t=rtype(r.type);
-  return `<div class="rep" data-open="${r.id}">
+  return `<div class="rep${isReviewer(S.me)&&claimedByOther(r)&&r.ownerKey!==S.me.key?" locked":""}" data-open="${r.id}">
     <div class="no">${r.num??"–"}</div>
     <div class="meta"><b>${esc(t.name)}${S.me&&isPart(r,S.me.key)?' <span class="part-tag">مشارك</span>':""}${r.dupInfo&&r.dupInfo.length&&(isReviewer(S.me)||canManage(S.me)||r.ownerKey===S.me.key)?' <span class="dup-badge">⚠ صورة مكررة</span>':""}${isReviewer(S.me)&&claimedByOther(r)?` <span class="claim-badge"><i></i>يراجعه ${esc(claimName(r))}</span>`:""}</b><small>${showOwner?esc(r.ownerName)+" · "+esc(r.ownerCode)+" · ":""}${esc(r.area)} · ${fmtDate(r.createdAt)}</small></div>
     <span class="chip ${r.status}">${STATUS[r.status]}</span>
@@ -1938,6 +1940,16 @@ function openPerms(key){
 async function openReport(id){
   const r=S.reports.find(x=>x.id===id);if(!r)return;
   const t=rtype(r.type),rev=isReviewer(S.me),own=r.ownerKey===S.me.key;
+  // تقرير محجوز لمسؤول ثاني: ما ينفتح أبداً
+  let preClaim=null;
+  if(rev&&!own&&r.status==="pending"){
+    const blocked=n=>{toast(`يراجعه ${n} الحين، ما تقدر تفتحه`);fetchReports().then(render,()=>{})};
+    if(claimedByOther(r)){blocked(claimName(r));return}
+    if(S.opening===id)return;S.opening=id;
+    try{const {data,error}=await S.sb.rpc("claim_report",{p_id:r.id});if(!error)preClaim=data}catch(e){}
+    S.opening=null;
+    if(preClaim&&preClaim.ok===false&&preClaim.by){blocked(preClaim.by.split(" | ")[0]);return}
+  }
   const m=document.createElement("div");m.className="modal";
   m.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">
     <div class="sheet-h"><div><h2 style="font-size:20px">تقرير رقم <span class="mono">${r.num}</span> · ${esc(t.name)}</h2>
@@ -1979,13 +1991,16 @@ async function openReport(id){
   async function doClaim(){
     const box=$("#m-claim",m);if(!box||!m.isConnected)return;
     let res=null;
-    try{const {data,error}=await S.sb.rpc("claim_report",{p_id:r.id});if(!error)res=data;else if(!/function|schema cache|does not exist/i.test(error.message))res={ok:false,err:error.message}}catch(e){}
+    if(preClaim){res=preClaim;preClaim=null}
+    else try{const {data,error}=await S.sb.rpc("claim_report",{p_id:r.id});if(!error)res=data;else if(!/function|schema cache|does not exist/i.test(error.message))res={ok:false,err:error.message}}catch(e){}
     if(!m.isConnected)return;
     if(!res){box.remove();setBtns(true);return}                       // التحديث غير مثبت: نشتغل بدون حجز
     if(res.ok){
       if(curClaim&&curClaim!==r.id)releaseClaim();
       held=true;curClaim=r.id;box.className="claim-box mine";box.innerHTML="<i></i> التقرير محجوز لك. ما أحد غيرك يقدر يقبله أو يرفضه وأنت فاتحه.";setBtns(true);
       clearInterval(hb);hb=setInterval(()=>{if(m.isConnected&&held)S.sb.rpc("claim_report",{p_id:r.id}).then(()=>{},()=>{})},3*60*1000);
+    }else if(res.by&&!own){
+      held=false;close();toast(`يراجعه ${res.by.split(" | ")[0]} الحين، ما تقدر تفتحه`);fetchReports().then(render,()=>{});
     }else if(res.by){
       held=false;setBtns(false);box.className="claim-box other";
       box.innerHTML=`<i></i><span>يراجعه الحين <b>${esc(res.by.split(" | ")[0])}</b>${res.by.includes(" | ")?` · <span class="mono">${esc(res.by.split(" | ")[1])}</span>`:""} من ${fmtAgo(ms(res.at))}. تقدر تشوفه بس ما تقدر تقرر فيه.</span><button class="btn btn-ghost btn-sm" id="m-retry">تحديث</button>`;
