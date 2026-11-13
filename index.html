@@ -510,6 +510,19 @@ tr:last-child td{border-bottom:0}
 .maint-bar .mono{direction:ltr;unicode-bidi:isolate;background:rgba(0,0,0,.25);padding:1px 6px;border-radius:6px;font-size:12.5px}
 @media (prefers-reduced-motion:reduce){.maint-ico svg,.maint-dots i{animation:none}}
 
+/* ---------- v11: report claim while reviewing ---------- */
+.claim-badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#f1d08f;background:rgba(226,169,59,.12);border:1px solid rgba(226,169,59,.4);border-radius:999px;padding:1px 9px;vertical-align:middle}
+.claim-badge i,.claim-box i{width:7px;height:7px;border-radius:50%;background:var(--warn);flex:none;animation:claimPulse 1.6s ease-in-out infinite}
+@keyframes claimPulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(226,169,59,.5)}50%{opacity:.6;box-shadow:0 0 0 5px rgba(226,169,59,0)}}
+.claim-box{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);background:rgba(255,255,255,.03);border-radius:10px;padding:10px 12px;font-size:13.5px;color:var(--steel-dim);margin-bottom:12px}
+.claim-box span{flex:1;min-width:180px;line-height:1.8}
+.claim-box.mine{border-color:rgba(61,178,120,.45);background:rgba(61,178,120,.08);color:#a9e2c4}
+.claim-box.mine i{background:var(--ok);animation:none}
+.claim-box.other{border-color:rgba(226,169,59,.45);background:rgba(226,169,59,.1);color:#f1d08f}
+.claim-box.other b{color:#fff}
+@media (prefers-reduced-motion:reduce){.claim-badge i,.claim-box i{animation:none}}
+.decide .btn:disabled{opacity:.35;cursor:not-allowed;filter:grayscale(.4);box-shadow:none;transform:none}
+
 details summary{font-weight:600}
 </style>
 </head>
@@ -607,7 +620,16 @@ const mapReport = r => ({id:r.id,num:r.num,type:r.type,shift:r.shift,area:r.area
   cases:r.cases||[],participants:r.participants||[],images:r.images||[],imageCount:(r.images||[]).length,ownerKey:r.owner,ownerName:r.owner_name,
   ownerCode:r.owner_code,status:r.status,note:r.note||"",reviewer:r.reviewer,reviewedAt:ms(r.reviewed_at),createdAt:ms(r.created_at),
   resubmits:r.resubmits||0,prevNote:r.prev_note||"",updatedAt:ms(r.updated_at),
-  participantIds:r.participant_ids||[],imageHashes:r.image_hashes||[],dupInfo:Array.isArray(r.dup_info)?r.dup_info:[]});
+  participantIds:r.participant_ids||[],imageHashes:r.image_hashes||[],dupInfo:Array.isArray(r.dup_info)?r.dup_info:[],
+  claimBy:r.claimed_by||null,claimLabel:r.claimed_label||"",claimAt:ms(r.claimed_at)});
+/* حجز التقرير أثناء المراجعة */
+const CLAIM_TTL=10*60*1000;
+const claimedByOther=r=>!!(r&&r.status==="pending"&&r.claimBy&&S.me&&r.claimBy!==S.me.key&&r.claimAt&&Date.now()-r.claimAt<CLAIM_TTL);
+const fmtAgo=t=>{const d=Math.max(0,Math.round((Date.now()-t)/60000));return d<1?"أقل من دقيقة":d===1?"دقيقة":d===2?"دقيقتين":d<=10?d+" دقائق":d+" دقيقة"};
+const claimName=r=>(r.claimLabel||"").split(" | ")[0]||"مسؤول آخر";
+let curClaim=null;
+function releaseClaim(){if(!curClaim)return;const id=curClaim;curClaim=null;try{S.sb.rpc("release_report",{p_id:id}).then(()=>{},()=>{})}catch(e){}}
+window.addEventListener("pagehide",releaseClaim);
 const mapNotif = r => ({id:r.id,kind:r.kind,title:r.title,body:r.body||"",reportId:r.report_id,read:!!r.read_at,createdAt:ms(r.created_at)});
 const mapAudit = r => ({id:r.id,actor:r.actor_label||"—",action:r.action,target:r.target||"",details:r.details||"",createdAt:ms(r.created_at)});
 const mapViol = r => ({id:r.id,memberKey:r.member_id,memberName:r.member_name,memberCode:r.member_code,level:r.level,reason:r.reason,by:r.by_label,createdAt:ms(r.created_at)});
@@ -898,7 +920,7 @@ function repRow(r,showOwner){
   const t=rtype(r.type);
   return `<div class="rep" data-open="${r.id}">
     <div class="no">${r.num??"–"}</div>
-    <div class="meta"><b>${esc(t.name)}${S.me&&isPart(r,S.me.key)?' <span class="part-tag">مشارك</span>':""}${r.dupInfo&&r.dupInfo.length&&(isReviewer(S.me)||canManage(S.me)||r.ownerKey===S.me.key)?' <span class="dup-badge">⚠ صورة مكررة</span>':""}</b><small>${showOwner?esc(r.ownerName)+" · "+esc(r.ownerCode)+" · ":""}${esc(r.area)} · ${fmtDate(r.createdAt)}</small></div>
+    <div class="meta"><b>${esc(t.name)}${S.me&&isPart(r,S.me.key)?' <span class="part-tag">مشارك</span>':""}${r.dupInfo&&r.dupInfo.length&&(isReviewer(S.me)||canManage(S.me)||r.ownerKey===S.me.key)?' <span class="dup-badge">⚠ صورة مكررة</span>':""}${isReviewer(S.me)&&claimedByOther(r)?` <span class="claim-badge"><i></i>يراجعه ${esc(claimName(r))}</span>`:""}</b><small>${showOwner?esc(r.ownerName)+" · "+esc(r.ownerCode)+" · ":""}${esc(r.area)} · ${fmtDate(r.createdAt)}</small></div>
     <span class="chip ${r.status}">${STATUS[r.status]}</span>
     ${r.status==="rejected"&&r.note?`<div class="note"><b>سبب الرفض:</b> ${esc(r.note)}${!showOwner&&r.ownerKey===S.me.key?' <span class="edit-hint">· اضغط لتعديله وإعادة رفعه</span>':""}</div>`:""}
     ${r.status==="pending"&&r.resubmits?`<div class="resub">أُعيد رفعه بعد الرفض${r.resubmits>1?` (${r.resubmits} مرات)`:""}${r.prevNote?` · سبب الرفض السابق: ${esc(r.prevNote)}`:""}</div>`:""}
@@ -1930,14 +1952,15 @@ async function openReport(id){
     ${r.status!=="pending"?`<div class="kv"><div><small>المراجع</small><b>${esc(r.reviewer||"—")}</b></div><div><small>وقت المراجعة</small><b>${fmtDate(r.reviewedAt)}</b></div></div>`:""}
     ${r.status==="rejected"&&r.note?`<div class="note-banner"><b>سبب الرفض:</b> ${esc(r.note)}</div>`:""}
     ${r.resubmits?`<div class="resub" style="margin:0">أُعيد رفع هذا التقرير بعد الرفض${r.resubmits>1?` ${r.resubmits} مرات`:""}${r.updatedAt?` · آخر تعديل ${fmtDate(r.updatedAt)}`:""}${r.prevNote&&r.status!=="rejected"?`<br>سبب الرفض السابق: ${esc(r.prevNote)}`:""}</div>`:""}
-    ${rev?`<div class="decide"><label class="field"><span>ملاحظة المسؤول ${r.status!=="accepted"?"(مطلوبة عند الرفض)":""}</span><textarea id="m-note" style="min-height:80px" placeholder="مثال: الصور غير واضحة، أعد الرفع">${esc(r.note||"")}</textarea></label>
+    ${rev?`<div class="decide">${r.status==="pending"?`<div class="claim-box" id="m-claim"><span class="loader"></span> جارِ حجز التقرير لك…</div>`:""}<label class="field"><span>ملاحظة المسؤول ${r.status!=="accepted"?"(مطلوبة عند الرفض)":""}</span><textarea id="m-note" style="min-height:80px" placeholder="مثال: الصور غير واضحة، أعد الرفع">${esc(r.note||"")}</textarea></label>
       <div class="err" id="m-err"></div>
-      <div class="row"><button class="btn btn-ok" id="m-acc">قبول التقرير</button><button class="btn btn-bad" id="m-rej">رفض التقرير</button><span style="flex:1"></span>${own&&r.status==="rejected"?'<button class="btn btn-primary" id="m-edit">تعديل وإعادة الرفع</button>':""}${own&&r.status==="pending"?'<button class="btn btn-ghost" id="m-del">حذف</button>':""}<button class="btn btn-ghost" id="m-close">إغلاق</button></div></div>`
+      <div class="row"><button class="btn btn-ok" id="m-acc" ${r.status==="pending"?"disabled":""}>قبول التقرير</button><button class="btn btn-bad" id="m-rej" ${r.status==="pending"?"disabled":""}>رفض التقرير</button><span style="flex:1"></span>${own&&r.status==="rejected"?'<button class="btn btn-primary" id="m-edit">تعديل وإعادة الرفع</button>':""}${own&&r.status==="pending"?'<button class="btn btn-ghost" id="m-del">حذف</button>':""}<button class="btn btn-ghost" id="m-close">إغلاق</button></div></div>`
     :`<div class="row" style="display:flex;gap:10px;flex-wrap:wrap">${own&&r.status==="rejected"?'<button class="btn btn-primary" id="m-edit">تعديل وإعادة الرفع</button>':""}${own&&r.status==="pending"?'<button class="btn btn-bad btn-sm" id="m-del">حذف التقرير</button>':""}<span style="flex:1"></span><button class="btn btn-ghost" id="m-close">إغلاق</button></div>`}
   </div>`;
   document.body.appendChild(m);document.body.style.overflow="hidden";
   const onKey=e=>{if(e.key==="Escape")close()};
-  const close=()=>{m.remove();document.body.style.overflow="";document.removeEventListener("keydown",onKey)};
+  let hb=null,held=false;
+  const close=()=>{m.remove();document.body.style.overflow="";document.removeEventListener("keydown",onKey);clearInterval(hb);if(held&&curClaim===r.id)releaseClaim()};
   document.addEventListener("keydown",onKey);
   m.onclick=e=>{if(e.target===m)close()};$("#m-close",m).onclick=close;
   const decide=async st=>{
@@ -1945,10 +1968,31 @@ async function openReport(id){
     if(st==="rejected"&&!note){err.textContent="اكتب سبب الرفض ليعرفه صاحب التقرير.";return}
     m.querySelectorAll(".decide .btn").forEach(b=>b.disabled=true);
     const {data,error}=await S.sb.from("reports").update({status:st,note}).eq("id",r.id).select().single();
-    if(error){err.textContent="تعذّر الحفظ: "+error.message;m.querySelectorAll(".decide .btn").forEach(b=>b.disabled=false);return}
+    if(error){
+      if(/claimed_by_other/.test(error.message)){err.textContent="مسؤول ثاني حجز هذا التقرير قبلك.";doClaim();return}
+      err.textContent="تعذّر الحفظ: "+error.message;m.querySelectorAll(".decide .btn").forEach(b=>b.disabled=false);return}
+    held=false;if(curClaim===r.id)curClaim=null;
     S.reports=S.reports.map(x=>x.id===data.id?mapReport(data):x);render();close();toast(st==="accepted"?"تم قبول التقرير":"تم رفض التقرير");
   };
   if(rev){$("#m-acc",m).onclick=()=>decide("accepted");$("#m-rej",m).onclick=()=>decide("rejected")}
+  const setBtns=on=>["#m-acc","#m-rej"].forEach(q=>{const b=$(q,m);if(b)b.disabled=!on});
+  async function doClaim(){
+    const box=$("#m-claim",m);if(!box||!m.isConnected)return;
+    let res=null;
+    try{const {data,error}=await S.sb.rpc("claim_report",{p_id:r.id});if(!error)res=data;else if(!/function|schema cache|does not exist/i.test(error.message))res={ok:false,err:error.message}}catch(e){}
+    if(!m.isConnected)return;
+    if(!res){box.remove();setBtns(true);return}                       // التحديث غير مثبت: نشتغل بدون حجز
+    if(res.ok){
+      if(curClaim&&curClaim!==r.id)releaseClaim();
+      held=true;curClaim=r.id;box.className="claim-box mine";box.innerHTML="<i></i> التقرير محجوز لك. ما أحد غيرك يقدر يقبله أو يرفضه وأنت فاتحه.";setBtns(true);
+      clearInterval(hb);hb=setInterval(()=>{if(m.isConnected&&held)S.sb.rpc("claim_report",{p_id:r.id}).then(()=>{},()=>{})},3*60*1000);
+    }else if(res.by){
+      held=false;setBtns(false);box.className="claim-box other";
+      box.innerHTML=`<i></i><span>يراجعه الحين <b>${esc(res.by.split(" | ")[0])}</b>${res.by.includes(" | ")?` · <span class="mono">${esc(res.by.split(" | ")[1])}</span>`:""} من ${fmtAgo(ms(res.at))}. تقدر تشوفه بس ما تقدر تقرر فيه.</span><button class="btn btn-ghost btn-sm" id="m-retry">تحديث</button>`;
+      $("#m-retry",m).onclick=()=>{box.className="claim-box";box.innerHTML='<span class="loader"></span> جارِ التحقق…';doClaim()};
+    }else{box.remove();setBtns(true)}
+  }
+  if(rev&&r.status==="pending")doClaim();
   const ed=$("#m-edit",m);if(ed)ed.onclick=()=>{close();S.draft=draftFromReport(r);S.view="new";render();window.scrollTo({top:0,behavior:"smooth"})};
   const del=$("#m-del",m);if(del)del.onclick=async()=>{
     if(del.dataset.sure!=="1"){del.dataset.sure="1";del.textContent="اضغط مرة ثانية للتأكيد";return}
