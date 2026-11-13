@@ -99,7 +99,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .nav .count{background:var(--bad);color:#fff;border-radius:999px;font-size:11px;padding:0 7px;line-height:18px}
 
 main{padding-top:22px;display:grid;gap:22px}
-.view{display:grid;gap:22px;animation:rise .45s ease both}
+.view{display:grid;gap:22px;animation:rise .45s ease both;min-width:0}
+main>*,.view>*{min-width:0}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .section-h{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .section-h h2{font-size:22px}
@@ -471,6 +472,26 @@ tr:last-child td{border-bottom:0}
 .inv-t td.sa{font-weight:700;color:#fff;background:rgba(52,99,201,.1)}
 .inv-note{margin:8px 4px 0;color:var(--steel-dim);font-size:12.5px}
 
+/* ---------- v9: reviewer statistics ---------- */
+.rst-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+@media (max-width:900px){.rst-cards{grid-template-columns:repeat(2,1fr)}.rst-cards .stat:last-child{grid-column:1/-1}}
+.rst-cards .stat b.dur{font-size:22px;padding-top:8px;color:#9db6ec}
+.rst-old{display:block;color:var(--steel-dim);font-size:12px;margin-top:4px}
+.rst-t{min-width:860px}
+.rst-row{cursor:pointer;transition:background .15s}
+.rst-row:hover,.rst-row.open{background:rgba(52,99,201,.08)}
+.rst-row:focus-visible{outline:2px solid var(--navy-hi);outline-offset:-2px}
+.rst-t td.sa{font-weight:700;color:#fff;background:rgba(52,99,201,.1)}
+.medal{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 50% 35%,rgba(217,178,95,.4),rgba(217,178,95,.12));border:1px solid rgba(217,178,95,.55);color:var(--gold);font-size:12px}
+.bar.split{display:flex;min-width:110px}
+.bar.split i{display:block;height:100%}
+.bar.split i.ok{background:var(--ok)}.bar.split i.bad{background:var(--bad)}
+.rst-det td{background:var(--panel-2);padding:10px 14px}
+.rst-list{display:grid;gap:6px;max-height:320px;overflow:auto}
+.rst-it{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
+.rst-meta{color:var(--steel-dim);font-size:12px;white-space:nowrap}
+@media (max-width:640px){.rst-it{grid-template-columns:auto 1fr}.rst-meta{grid-column:1/-1}}
+
 details summary{font-weight:600}
 </style>
 </head>
@@ -521,6 +542,7 @@ const STATUS = {pending:"بانتظار المراجعة",accepted:"مقبول",
 const PERMS = [
   {id:"review", name:"مراجعة التقارير", hint:"قبول ورفض تقارير الأفراد وكتابة الملاحظات"},
   {id:"manage", name:"إدارة الأفراد والصلاحيات", hint:"إصدار الأكواد، المخالفات، إيقاف الحسابات، ومنح الصلاحيات أو سحبها"},
+  {id:"stats", name:"إحصائيات المسؤولين", hint:"عرض عدد التقارير اللي قبلها ورفضها كل مسؤول وسرعة مراجعته"},
 ];
 const LEVELS={note:{name:"ملاحظة",c:"var(--steel-dim)"},warn:{name:"إنذار",c:"var(--warn)"},final:{name:"إنذار نهائي",c:"var(--bad)"},fire:{name:"إعفاء من الفرقة",c:"var(--bad)"}};
 
@@ -532,7 +554,8 @@ const S = {
   rf:{q:"",type:"",from:"",to:""}, inv:null, invSort:"sa", invShow:"all", vf:"", vlvl:"warn",
   concept:null, v4:true, resets:[], needPledge:false, conceptEdit:false,
   suggs:[], sf:"new", v5:true,
-  draft:null, channel:null, invites:[], issued:null, iperms:{review:false,manage:false},
+  draft:null, channel:null, invites:[], issued:null, iperms:{review:false,manage:false,stats:false},
+  rst:null, rstData:null, rstOpen:null, rstDet:{},
   notifs:[], notifMax:null, bellOpen:false, audit:[], af:{cat:"",q:"",from:"",to:""}, lb:{cur:[],prev:[]},
 };
 const $ = (s,el=document)=>el.querySelector(s);
@@ -763,6 +786,7 @@ function shellHTML(){
   const tabs=[["concept","المفهوم"],["home","تقاريري"],["new","تقرير جديد"]];
   if(rev)tabs.push(["review","مراجعة التقارير"]);
   if(rev||mng)tabs.push(["inventory","الجرد"]);
+  if(hasPerm(S.me,"stats"))tabs.push(["rstats","إحصائيات المسؤولين"]);
   if(mng)tabs.push(["violations","المخالفات"],["members","الأفراد والأكواد"],["audit","السجل"]);
   tabs.push(["suggest","اقتراح"]);
   const newSugg=(rev||mng)?S.suggs.filter(x=>x.status==="new"&&x.memberKey!==S.me.key).length:0;
@@ -777,12 +801,13 @@ function shellHTML(){
   </header>
   <main class="wrap">${S.loadErr?`<div class="banner">${esc(S.loadErr)}</div>`:""}${
     S.view==="new"?newHTML(): S.view==="review"&&rev?reviewHTML(): S.view==="members"&&mng?membersHTML():
-    S.view==="inventory"&&(rev||mng)?invHTML(): S.view==="violations"&&mng?violHTML(): S.view==="audit"&&mng?auditHTML(): S.view==="concept"?conceptHTML(): S.view==="suggest"?suggHTML(): homeHTML()}</main>`;
+    S.view==="inventory"&&(rev||mng)?invHTML(): S.view==="violations"&&mng?violHTML(): S.view==="audit"&&mng?auditHTML(): S.view==="concept"?conceptHTML(): S.view==="suggest"?suggHTML(): S.view==="rstats"&&hasPerm(S.me,"stats")?rstHTML(): homeHTML()}</main>`;
 }
 function bindShell(){
   $("#logout").onclick=e=>{e.stopPropagation();doLogout(e.currentTarget)};
   document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{if(b.dataset.v==="new"&&S.draft&&S.draft.editId)S.draft=null;S.view=b.dataset.v;render();window.scrollTo({top:0,behavior:"smooth"});
     if(S.view==="audit")fetchAudit().then(()=>{if(S.view==="audit")renderAudit()});
+    if(S.view==="rstats")loadRst();
     if(S.view==="home")Promise.all([fetchLb(),fetchNotifs()]).then(()=>{if(S.view==="home")render()})});
   document.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openReport(el.dataset.open));
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go==="new"&&S.draft&&S.draft.editId)S.draft=null;S.view=b.dataset.go;render()});
@@ -797,6 +822,7 @@ function bindShell(){
   if(S.view==="audit"&&canManage(S.me))bindAudit();
   if(S.view==="concept")bindConcept();
   if(S.view==="suggest")bindSugg();
+  if(S.view==="rstats"&&hasPerm(S.me,"stats"))bindRst();
   bindBell();
 }
 
@@ -1379,6 +1405,86 @@ function mountHero(){
   const fresh=!heroEl;if(fresh)heroEl=buildHero();
   slot.replaceWith(heroEl);
   heroRestart();   // إعادة الإدراج تعيد حركة شريط التقدم، فنعيد ضبط المؤقت معها
+}
+
+/* ---------- reviewer statistics ---------- */
+function fmtDur(min){
+  if(min==null||isNaN(min))return "—";
+  min=Math.round(+min);if(min<1)return "أقل من دقيقة";
+  if(min<60)return `${min} د`;
+  const h=Math.floor(min/60),m=min%60;if(h<24)return m?`${h} س ${m} د`:`${h} س`;
+  const d=Math.floor(h/24),hh=h%24;return hh?`${d} يوم ${hh} س`:`${d} يوم`;
+}
+function rstRange(){const v=S.rst;const a=v.since?new Date(v.since):v.from?new Date(dayMs(v.from)):new Date(2000,0,1);const b=v.to?new Date(dayMs(v.to,true)+1):new Date(Date.now()+864e5);return [a.toISOString(),b.toISOString()]}
+async function loadRst(){
+  const [a,b]=rstRange(),seq=(S._rstSeq=(S._rstSeq||0)+1);
+  S.rstData=null;S.rstDet={};
+  const [st,qu]=await Promise.all([S.sb.rpc("reviewer_stats",{p_from:a,p_to:b}),S.sb.rpc("review_queue_stats")]);
+  if(seq!==S._rstSeq)return;
+  if(st.error){S.rstData={error:/not_allowed/.test(st.error.message)?"ما عندك صلاحية عرض إحصائيات المسؤولين.":/does not exist|404/.test(st.error.message)?"الإحصائيات تحتاج تحديث قاعدة البيانات (update-v7.sql).":"تعذّر التحميل: "+st.error.message};}
+  else{const q=Array.isArray(qu.data)?qu.data[0]:qu.data;
+    S.rstData={rows:(st.data||[]).map(r=>({key:r.rkey,id:r.reviewer_id,name:r.name,code:r.code,a:r.accepted,x:r.rejected,t:r.total,avg:r.avg_minutes==null?null:+r.avg_minutes,last:ms(r.last_at)})),
+      pending:q?q.pending:0,oldest:q?ms(q.oldest):0};}
+  if(S.view==="rstats")renderRst();
+}
+function rstHTML(){
+  if(!S.rst){const def="month";S.rst={...invPreset(def),preset:def}}
+  const v=S.rst,presets=[...(lastResetMs()?[["cycle","منذ آخر تصفير"]]:[]),["today","اليوم"],["week","آخر ٧ أيام"],["month","هذا الشهر"],["last","الشهر الماضي"],["all","كل الفترات"]];
+  return `<section class="view">
+    <div class="section-h"><div><h2>إحصائيات المسؤولين</h2><p>كم تقرير قبل ورفض كل مسؤول، وكم ياخذ وقت عشان يراجع. تظهر بس لمن عنده صلاحية "إحصائيات المسؤولين"</p></div></div>
+    <div class="card" style="gap:14px">
+      <div class="pills">${presets.map(([k,l])=>`<button type="button" class="pill ${v.preset===k?"on":""}" data-rpre="${k}">${l}</button>`).join("")}</div>
+      <div class="range">
+        <label class="field"><span>من تاريخ</span><input type="date" id="rst-from" value="${v.from||""}"></label>
+        <label class="field"><span>إلى تاريخ</span><input type="date" id="rst-to" value="${v.to||""}"></label>
+      </div>
+    </div>
+    <div id="rst-body"><div class="empty" style="border:0"><span class="loader"></span></div></div>
+  </section>`;
+}
+function renderRst(){
+  const box=$("#rst-body");if(!box)return;const D=S.rstData;
+  if(!D){box.innerHTML='<div class="empty" style="border:0"><span class="loader"></span></div>';return}
+  if(D.error){box.innerHTML=`<div class="banner">${esc(D.error)}</div>`;return}
+  const rows=D.rows,T=rows.reduce((s,r)=>({a:s.a+r.a,x:s.x+r.x,t:s.t+r.t}),{a:0,x:0,t:0});
+  const wavg=T.t?rows.reduce((s,r)=>s+(r.avg||0)*r.t,0)/T.t:null,top=Math.max(1,...rows.map(r=>r.t));
+  const age=D.oldest?(Date.now()-D.oldest)/6e4:null;
+  box.innerHTML=`<div class="rst-cards">
+      <div class="stat" style="--c:var(--steel)"><span>إجمالي القرارات</span><b>${T.t}</b></div>
+      <div class="stat" style="--c:var(--ok)"><span>قبول</span><b>${T.a}</b></div>
+      <div class="stat" style="--c:var(--bad)"><span>رفض</span><b>${T.x}</b></div>
+      <div class="stat" style="--c:var(--navy-hi)"><span>متوسط وقت المراجعة</span><b class="dur">${fmtDur(wavg)}</b></div>
+      <div class="stat" style="--c:var(--warn)"><span>بانتظار المراجعة الآن</span><b>${D.pending}</b>${age!=null&&D.pending?`<small class="rst-old">أقدمها من ${fmtDur(age)}</small>`:""}</div>
+    </div>
+    ${rows.length?`<div class="table-wrap"><table class="rst-t"><thead><tr><th>#</th><th>المسؤول</th><th>الكود</th><th>قبول</th><th>رفض</th><th>المجموع</th><th></th><th>نسبة القبول</th><th>متوسط وقت المراجعة</th><th>آخر مراجعة</th></tr></thead><tbody>
+      ${rows.map((r,i)=>`<tr class="rst-row ${S.rstOpen===r.key?"open":""}" data-rk="${esc(r.key)}" tabindex="0"><td class="num rank">${i===0?'<span class="medal">١</span>':i+1}</td><td><b>${esc(r.name)}</b></td><td class="num" style="white-space:nowrap">${esc(r.code)}</td>
+        <td class="num" style="color:var(--ok)">${r.a}</td><td class="num" style="color:var(--bad)">${r.x}</td><td class="num sa">${r.t}</td>
+        <td><div class="bar split"><i class="ok" style="width:${r.a/top*100}%"></i><i class="bad" style="width:${r.x/top*100}%"></i></div></td>
+        <td class="rate">${r.t?Math.round(r.a/r.t*100)+"%":"—"}</td><td class="num">${fmtDur(r.avg)}</td><td class="num" style="white-space:nowrap">${fmtDate(r.last)}</td></tr>
+        ${S.rstOpen===r.key?`<tr class="rst-det"><td colspan="10">${rstDetHTML(r.key)}</td></tr>`:""}`).join("")}
+    </tbody><tfoot><tr><td></td><td>المجموع</td><td></td><td class="num">${T.a}</td><td class="num">${T.x}</td><td class="num sa">${T.t}</td><td></td><td class="rate">${T.t?Math.round(T.a/T.t*100)+"%":"—"}</td><td class="num">${fmtDur(wavg)}</td><td></td></tr></tfoot></table>
+    <p class="inv-note">اضغط على أي مسؤول عشان تشوف آخر قراراته. كل قبول أو رفض ينحسب، حتى لو غيّر المسؤول قراره بعدين. وقت المراجعة = من رفع التقرير (أو إعادة رفعه) لين القرار.</p></div>`
+    :`<div class="empty"><b>ما فيه قرارات مراجعة في هذه الفترة</b>جرّب فترة أطول أو "كل الفترات".</div>`}`;
+  box.querySelectorAll(".rst-row").forEach(tr=>{const go=()=>{const k=tr.dataset.rk;S.rstOpen=S.rstOpen===k?null:k;renderRst();if(S.rstOpen&&!S.rstDet[k])loadRstDet(k)};
+    tr.onclick=go;tr.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}});
+}
+function rstDetHTML(k){
+  const d=S.rstDet[k];if(!d)return '<div style="padding:10px;text-align:center"><span class="loader"></span></div>';
+  if(d.error)return `<div class="banner">${esc(d.error)}</div>`;
+  if(!d.list.length)return '<small style="color:var(--steel-dim)">لا توجد قرارات</small>';
+  return `<div class="rst-list">${d.list.map(x=>`<div class="rst-it ${x.decision}"><span class="chip ${x.decision}">${x.decision==="accepted"?"قبول":"رفض"}</span>
+    <span>تقرير رقم <b class="mono">${esc(x.report_num)}</b> · ${esc(x.owner_name)} <span class="mono" style="color:var(--steel-dim)">${esc(x.owner_code)}</span></span>
+    <span class="rst-meta">${fmtDate(ms(x.decided_at))} · خلال ${fmtDur((ms(x.decided_at)-ms(x.submitted_at))/6e4)}</span></div>`).join("")}</div>`;
+}
+async function loadRstDet(k){
+  const [a,b]=rstRange();const {data,error}=await S.sb.rpc("reviewer_decisions",{p_key:k,p_from:a,p_to:b});
+  S.rstDet[k]=error?{error:"تعذّر التحميل: "+error.message}:{list:data||[]};if(S.view==="rstats")renderRst();
+}
+function bindRst(){
+  document.querySelectorAll("[data-rpre]").forEach(b=>b.onclick=()=>{S.rst={...invPreset(b.dataset.rpre),preset:b.dataset.rpre};S.rstOpen=null;S.rstData=null;render()});
+  const upd=()=>{S.rst={from:$("#rst-from").value,to:$("#rst-to").value,preset:""};S.rstOpen=null;document.querySelectorAll("[data-rpre]").forEach(b=>b.classList.remove("on"));loadRst()};
+  $("#rst-from").onchange=upd;$("#rst-to").onchange=upd;
+  if(S.rstData)renderRst();else loadRst();
 }
 
 /* ---------- suggestions ---------- */
